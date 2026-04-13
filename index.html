@@ -1,387 +1,334 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RECORE ダッシュボード</title>
+<title>RECORE Dashboard</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f0; color: #1a1a1a; font-size: 14px; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f4f4f0; color: #111; font-size: 14px; }
 
-  .header { background: #1a1a1a; color: #fff; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
-  .header h1 { font-size: 18px; font-weight: 500; letter-spacing: 0.05em; }
-  .header .status { font-size: 12px; color: #888; }
-  .header .status.connected { color: #4caf50; }
+header { background: #111; color: #fff; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; }
+header h1 { font-size: 16px; font-weight: 500; letter-spacing: 0.08em; }
+#status { font-size: 12px; color: #666; }
+#status.ok { color: #4caf50; }
+#status.err { color: #f44336; }
 
-  .api-bar { background: #fff; border-bottom: 0.5px solid #ddd; padding: 12px 24px; display: flex; align-items: center; gap: 12px; }
-  .api-bar label { font-size: 12px; color: #666; white-space: nowrap; }
-  .api-bar input { flex: 1; padding: 8px 12px; border: 0.5px solid #ccc; border-radius: 6px; font-size: 13px; font-family: monospace; }
-  .api-bar button { padding: 8px 16px; background: #1a1a1a; color: #fff; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; white-space: nowrap; }
-  .api-bar button:hover { background: #333; }
+.bar { background: #fff; border-bottom: 1px solid #e8e8e4; padding: 12px 24px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.bar label { font-size: 12px; color: #666; }
+.bar input[type=password], .bar input[type=date] { padding: 7px 11px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; }
+.bar input[type=password] { width: 320px; font-family: monospace; }
+.bar button { padding: 7px 14px; border: 1px solid #ddd; border-radius: 6px; font-size: 12px; cursor: pointer; background: #f4f4f0; }
+.bar button:hover { background: #e8e8e4; }
+.bar button.primary { background: #111; color: #fff; border-color: #111; }
+.bar button.primary:hover { background: #333; }
+.bar button.active { background: #111; color: #fff; border-color: #111; }
 
-  .date-bar { background: #fff; border-bottom: 0.5px solid #ddd; padding: 10px 24px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-  .date-bar label { font-size: 12px; color: #666; }
-  .date-bar input[type="date"] { padding: 6px 10px; border: 0.5px solid #ccc; border-radius: 6px; font-size: 13px; }
-  .date-bar button { padding: 6px 12px; border: 0.5px solid #ccc; border-radius: 6px; font-size: 12px; cursor: pointer; background: #f5f5f0; }
-  .date-bar button:hover { background: #e8e8e4; }
-  .date-bar button.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+main { max-width: 1400px; margin: 0 auto; padding: 20px 24px; }
 
-  .main { padding: 24px; max-width: 1400px; margin: 0 auto; }
+#log { font-family: monospace; font-size: 12px; background: #fff; border: 1px solid #e8e8e4; border-radius: 8px; padding: 12px; max-height: 100px; overflow-y: auto; margin-bottom: 20px; line-height: 1.9; color: #666; }
+#log .ok { color: #4caf50; }
+#log .err { color: #f44336; }
+#log .info { color: #1976d2; }
 
-  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
-  .kpi { background: #fff; border-radius: 8px; border: 0.5px solid #e0e0e0; padding: 16px; }
-  .kpi .label { font-size: 11px; color: #888; margin-bottom: 6px; }
-  .kpi .value { font-size: 24px; font-weight: 500; }
-  .kpi .sub { font-size: 11px; color: #888; margin-top: 4px; }
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+@media(max-width:700px){ .kpis { grid-template-columns: repeat(2,1fr); } }
+.kpi { background: #fff; border: 1px solid #e8e8e4; border-radius: 8px; padding: 16px; }
+.kpi .lbl { font-size: 11px; color: #999; margin-bottom: 6px; }
+.kpi .val { font-size: 22px; font-weight: 500; }
 
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
-  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
-  @media (max-width: 900px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+.charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media(max-width:900px){ .charts { grid-template-columns: 1fr; } }
+.card { background: #fff; border: 1px solid #e8e8e4; border-radius: 8px; padding: 18px; }
+.card h3 { font-size: 12px; font-weight: 500; color: #666; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.05em; }
 
-  .card { background: #fff; border-radius: 8px; border: 0.5px solid #e0e0e0; padding: 20px; }
-  .card h3 { font-size: 13px; font-weight: 500; color: #444; margin-bottom: 16px; }
+.tabs { display: flex; gap: 4px; margin-bottom: 14px; }
+.tabs button { padding: 4px 10px; border: 1px solid #ddd; border-radius: 20px; font-size: 11px; cursor: pointer; background: #f4f4f0; }
+.tabs button.active { background: #111; color: #fff; border-color: #111; }
 
-  .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-  .bar-row .name { font-size: 12px; color: #444; width: 120px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .bar-row .bar-wrap { flex: 1; background: #f0f0ec; border-radius: 3px; height: 8px; }
-  .bar-row .bar { height: 8px; border-radius: 3px; background: #1a1a1a; transition: width 0.4s; }
-  .bar-row .count { font-size: 12px; color: #666; width: 60px; text-align: right; flex-shrink: 0; }
+.brow { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+.brow .nm { font-size: 12px; color: #444; width: 110px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.brow .track { flex: 1; background: #f0f0ec; border-radius: 3px; height: 7px; }
+.brow .fill { height: 7px; border-radius: 3px; background: #111; }
+.brow .cnt { font-size: 12px; color: #888; width: 70px; text-align: right; flex-shrink: 0; }
 
-  .trend-chart { position: relative; height: 160px; }
-  svg.chart { width: 100%; height: 100%; }
-
-  .log { font-size: 12px; color: #888; padding: 12px; background: #f9f9f7; border-radius: 6px; max-height: 120px; overflow-y: auto; line-height: 1.8; font-family: monospace; }
-  .log .ok { color: #4caf50; }
-  .log .err { color: #e53935; }
-  .log .info { color: #1976d2; }
-
-  .loading { text-align: center; padding: 40px; color: #aaa; font-size: 13px; }
-  .empty { text-align: center; padding: 32px; color: #bbb; font-size: 12px; }
-
-  .tab-row { display: flex; gap: 4px; margin-bottom: 16px; }
-  .tab-row button { padding: 5px 12px; border: 0.5px solid #ccc; border-radius: 20px; font-size: 12px; cursor: pointer; background: #f5f5f0; }
-  .tab-row button.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+.empty { text-align: center; padding: 32px; color: #ccc; font-size: 12px; }
 </style>
 </head>
 <body>
 
-<div class="header">
+<header>
   <h1>RECORE DASHBOARD</h1>
-  <span class="status" id="conn-status">未接続</span>
-</div>
+  <span id="status">未接続</span>
+</header>
 
-<div class="api-bar">
+<div class="bar">
   <label>API KEY</label>
-  <input type="password" id="api-key" placeholder="RECOREのAPIキーを入力してください" />
-  <button onclick="connect()">接続</button>
-</div>
-
-<div class="date-bar">
+  <input type="password" id="apikey" placeholder="APIキーを入力" />
+  <button class="primary" onclick="connect()">接続</button>
+  <span style="color:#ddd">|</span>
   <label>期間</label>
-  <input type="date" id="date-from" />
+  <input type="date" id="from" />
   <span style="color:#999">〜</span>
-  <input type="date" id="date-to" />
-  <button onclick="setRange(7)">7日</button>
-  <button onclick="setRange(30)" class="active" id="btn30">30日</button>
-  <button onclick="setRange(90)">90日</button>
-  <button onclick="loadData()" style="background:#1a1a1a;color:#fff;border-color:#1a1a1a;">更新</button>
+  <input type="date" id="to" />
+  <button onclick="setDays(7,this)">7日</button>
+  <button class="active" id="d30" onclick="setDays(30,this)">30日</button>
+  <button onclick="setDays(90,this)">90日</button>
+  <button class="primary" onclick="load()">取得</button>
 </div>
 
-<div class="main">
-  <div id="log-area" class="log" style="margin-bottom:16px;">APIキーを入力して接続してください。</div>
+<main>
+  <div id="log">APIキーを入力して接続してください。</div>
 
-  <div class="kpi-grid">
-    <div class="kpi"><div class="label">総売上件数</div><div class="value" id="kpi-count">—</div><div class="sub">成約件数</div></div>
-    <div class="kpi"><div class="label">総売上金額</div><div class="value" id="kpi-revenue">—</div><div class="sub">税込</div></div>
-    <div class="kpi"><div class="label">平均単価</div><div class="value" id="kpi-avg">—</div><div class="sub">1件あたり</div></div>
-    <div class="kpi"><div class="label">ユニーク会員数</div><div class="value" id="kpi-members">—</div><div class="sub">購入者数</div></div>
+  <div class="kpis">
+    <div class="kpi"><div class="lbl">売上件数</div><div class="val" id="v-count">—</div></div>
+    <div class="kpi"><div class="lbl">売上金額</div><div class="val" id="v-rev">—</div></div>
+    <div class="kpi"><div class="lbl">平均単価</div><div class="val" id="v-avg">—</div></div>
+    <div class="kpi"><div class="lbl">ユニーク会員</div><div class="val" id="v-mem">—</div></div>
   </div>
 
-  <div class="grid2">
+  <div class="charts">
     <div class="card">
-      <h3>カテゴリ別 売上件数</h3>
-      <div class="tab-row">
-        <button class="active" onclick="switchTab('cat','count',this)">件数</button>
-        <button onclick="switchTab('cat','revenue',this)">金額</button>
+      <h3>カテゴリ別</h3>
+      <div class="tabs">
+        <button class="active" onclick="sw('cat','count',this)">件数</button>
+        <button onclick="sw('cat','rev',this)">金額</button>
       </div>
-      <div id="chart-category"><div class="empty">データなし</div></div>
+      <div id="c-cat"><div class="empty">データなし</div></div>
     </div>
-    <div class="card">
-      <h3>ブランド別 売上件数</h3>
-      <div class="tab-row">
-        <button class="active" onclick="switchTab('brand','count',this)">件数</button>
-        <button onclick="switchTab('brand','revenue',this)">金額</button>
-      </div>
-      <div id="chart-brand"><div class="empty">データなし</div></div>
-    </div>
-  </div>
 
-  <div class="grid2">
     <div class="card">
-      <h3>マケプレ別 売上件数</h3>
-      <div class="tab-row">
-        <button class="active" onclick="switchTab('market','count',this)">件数</button>
-        <button onclick="switchTab('market','revenue',this)">金額</button>
+      <h3>ブランド別</h3>
+      <div class="tabs">
+        <button class="active" onclick="sw('brand','count',this)">件数</button>
+        <button onclick="sw('brand','rev',this)">金額</button>
       </div>
-      <div id="chart-market"><div class="empty">データなし</div></div>
+      <div id="c-brand"><div class="empty">データなし</div></div>
     </div>
+
+    <div class="card">
+      <h3>マケプレ別</h3>
+      <div class="tabs">
+        <button class="active" onclick="sw('mkt','count',this)">件数</button>
+        <button onclick="sw('mkt','rev',this)">金額</button>
+      </div>
+      <div id="c-mkt"><div class="empty">データなし</div></div>
+    </div>
+
     <div class="card">
       <h3>週次トレンド</h3>
-      <div id="chart-trend"><div class="empty">データなし</div></div>
+      <div id="c-trend"><div class="empty">データなし</div></div>
     </div>
   </div>
-</div>
+</main>
 
 <script>
-const BASE = 'https://co-api.recore-pos.com';
-let API_KEY = '';
-let allCases = [];
-let itemCache = {};
-let productCache = {};
-let memberCache = {};
-let chartData = { cat: {}, brand: {}, market: {} };
-let tabState = { cat: 'count', brand: 'count', market: 'count' };
+const API = 'https://co-api.recore-pos.com';
+let KEY = '';
+let data = { cat:{count:{},rev:{}}, brand:{count:{},rev:{}}, mkt:{count:{},rev:{}} };
 
-function log(msg, type='info') {
-  const el = document.getElementById('log-area');
-  const span = document.createElement('span');
-  span.className = type;
-  span.textContent = '[' + new Date().toLocaleTimeString('ja-JP') + '] ' + msg + '\n';
-  el.appendChild(span);
+function addLog(msg, type) {
+  const el = document.getElementById('log');
+  const t = new Date().toLocaleTimeString('ja-JP');
+  el.innerHTML += '<span class="' + type + '">[' + t + '] ' + msg + '\n</span>';
   el.scrollTop = el.scrollHeight;
 }
 
-function setRange(days) {
+function setDays(n, btn) {
   const to = new Date();
   const from = new Date();
-  from.setDate(from.getDate() - days);
-  document.getElementById('date-to').value = to.toISOString().split('T')[0];
-  document.getElementById('date-from').value = from.toISOString().split('T')[0];
-  document.querySelectorAll('.date-bar button').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
+  from.setDate(from.getDate() - n);
+  document.getElementById('to').value = to.toISOString().slice(0,10);
+  document.getElementById('from').value = from.toISOString().slice(0,10);
+  document.querySelectorAll('.bar button:not(.primary)').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
 }
 
-function initDates() {
-  const to = new Date();
-  const from = new Date();
-  from.setDate(from.getDate() - 30);
-  document.getElementById('date-to').value = to.toISOString().split('T')[0];
-  document.getElementById('date-from').value = from.toISOString().split('T')[0];
-}
-
-async function apiFetch(path, params={}) {
-  const url = new URL(BASE + path);
-  Object.keys(params).forEach(k => url.searchParams.set(k, params[k]));
-  const res = await fetch(url, { 
-  method: 'GET',
-  mode: 'cors',
-  headers: { 
-    'Authorization': API_KEY
-  } 
-});
-  if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
-  return res.json();
+async function req(path, params) {
+  const url = new URL(API + path);
+  if (params) {
+    Object.keys(params).forEach(function(k){ url.searchParams.set(k, params[k]); });
+  }
+  const r = await fetch(url.toString(), {
+    method: 'GET',
+    headers: { 'Authorization': KEY }
+  });
+  if (!r.ok) throw new Error(r.status + ' ' + r.statusText);
+  return r.json();
 }
 
 async function connect() {
-  API_KEY = document.getElementById('api-key').value.trim();
-  if (!API_KEY) { log('APIキーを入力してください', 'err'); return; }
-  log('接続テスト中...', 'info');
+  KEY = document.getElementById('apikey').value.trim();
+  if (!KEY) { addLog('APIキーを入力してください', 'err'); return; }
+  addLog('接続テスト中...', 'info');
   try {
-    const data = await apiFetch('/sas_cases', { limit: 1 });
-    document.getElementById('conn-status').textContent = '接続済み';
-    document.getElementById('conn-status').className = 'status connected';
-    log('接続成功！データ取得を開始します', 'ok');
-    loadData();
+    await req('/me');
+    document.getElementById('status').textContent = '接続済み';
+    document.getElementById('status').className = 'ok';
+    addLog('接続成功！', 'ok');
+    load();
   } catch(e) {
-    log('接続失敗: ' + e.message, 'err');
-    document.getElementById('conn-status').textContent = '接続エラー';
+    addLog('接続失敗: ' + e.message, 'err');
+    document.getElementById('status').textContent = 'エラー';
+    document.getElementById('status').className = 'err';
   }
 }
 
-async function loadData() {
-  if (!API_KEY) { log('先に接続してください', 'err'); return; }
-  const from = document.getElementById('date-from').value;
-  const to = document.getElementById('date-to').value;
-  log('データ取得中... 期間: ' + from + ' 〜 ' + to, 'info');
+async function load() {
+  if (!KEY) { addLog('先に接続してください', 'err'); return; }
+  const from = document.getElementById('from').value;
+  const to = document.getElementById('to').value;
+  addLog('データ取得開始...', 'info');
 
   try {
-    allCases = [];
-    let page = 1;
-    let hasMore = true;
-    while (hasMore) {
-      const params = { limit: 100, page };
-      if (from) params.sold_at_from = from;
-      if (to) params.sold_at_to = to;
-      const data = await apiFetch('/sas_cases', params);
-      const items = Array.isArray(data) ? data : (data.data || data.items || []);
-      allCases = allCases.concat(items);
-      log('取得: ' + allCases.length + '件...', 'info');
-      hasMore = items.length === 100;
-      page++;
-      if (page > 20) break;
+    let cases = [];
+    let cursor = '';
+    while (true) {
+      const params = { limit: 100, cursor: cursor };
+      if (from) params.sold_at_from = from + ' 00:00:00';
+      if (to) params.sold_at_to = to + ' 23:59:59';
+      const res = await req('/sas_cases', params);
+      const rows = Array.isArray(res) ? res : (res.data || []);
+      cases = cases.concat(rows);
+      addLog(cases.length + '件取得中...', 'info');
+      if (rows.length < 100) break;
+      cursor = rows[rows.length - 1].id || '';
+      if (!cursor) break;
     }
-    log('sas_cases 取得完了: ' + allCases.length + '件', 'ok');
-    await enrichData();
+    addLog('合計 ' + cases.length + '件取得完了', 'ok');
+    await buildData(cases);
   } catch(e) {
-    log('データ取得エラー: ' + e.message, 'err');
+    addLog('取得エラー: ' + e.message, 'err');
   }
 }
 
-async function enrichData() {
-  log('商品・会員情報を取得中...', 'info');
-  const itemIds = [...new Set(allCases.map(c => c.item_id).filter(Boolean))];
-  const memberIds = [...new Set(allCases.map(c => c.member_id).filter(Boolean))];
+async function buildData(cases) {
+  addLog('商品・会員情報を取得中...', 'info');
 
-  for (let i = 0; i < itemIds.length; i += 10) {
-    const batch = itemIds.slice(i, i+10);
-    await Promise.all(batch.map(async id => {
-      if (itemCache[id]) return;
+  const itemIds = Array.from(new Set(cases.map(function(c){ return c.item_id; }).filter(Boolean)));
+  const memberIds = Array.from(new Set(cases.map(function(c){ return c.member_id; }).filter(Boolean)));
+
+  const items = {}, products = {}, members = {};
+
+  for (let i = 0; i < itemIds.length; i += 5) {
+    await Promise.all(itemIds.slice(i, i+5).map(async function(id) {
       try {
-        const item = await apiFetch('/items/' + id);
-        itemCache[id] = item;
-        if (item.product_id && !productCache[item.product_id]) {
-          const product = await apiFetch('/products/' + item.product_id);
-          productCache[item.product_id] = product;
+        const item = await req('/items/' + id);
+        items[id] = item;
+        if (item.product_id && !products[item.product_id]) {
+          const p = await req('/products/' + item.product_id);
+          products[item.product_id] = p;
         }
       } catch(e) {}
     }));
   }
 
-  for (let i = 0; i < memberIds.length; i += 10) {
-    const batch = memberIds.slice(i, i+10);
-    await Promise.all(batch.map(async id => {
-      if (memberCache[id]) return;
-      try {
-        const member = await apiFetch('/members/' + id);
-        memberCache[id] = member;
-      } catch(e) {}
+  for (let i = 0; i < memberIds.length; i += 5) {
+    await Promise.all(memberIds.slice(i, i+5).map(async function(id) {
+      try { members[id] = await req('/members/' + id); } catch(e) {}
     }));
   }
 
-  log('エンリッチ完了', 'ok');
-  buildCharts();
-}
+  addLog('エンリッチ完了、集計中...', 'info');
 
-function normalizeMarket(name) {
-  if (!name) return 'その他';
-  const n = name.toLowerCase().replace(/\s/g,'');
-  if (n.includes('メルカリ') || n.includes('mercari')) return 'メルカリ';
-  if (n.includes('ヤフオク') || n.includes('yahoo') || n.includes('yahuoku')) return 'ヤフオク';
-  if (n.includes('楽天') || n.includes('rakuten')) return '楽天';
-  if (n.includes('amazon') || n.includes('アマゾン')) return 'Amazon';
-  if (n.includes('paypay') || n.includes('ペイペイ')) return 'PayPayフリマ';
-  if (n.includes('店頭') || n.includes('店舗')) return '店頭';
-  return name;
-}
+  let totalRev = 0;
+  const memSet = new Set();
+  const catC={}, catR={}, brandC={}, brandR={}, mktC={}, mktR={}, weekC={};
+  data = { cat:{count:catC,rev:catR}, brand:{count:brandC,rev:brandR}, mkt:{count:mktC,rev:mktR} };
 
-function buildCharts() {
-  const catCount = {}, catRev = {};
-  const brandCount = {}, brandRev = {};
-  const marketCount = {}, marketRev = {};
-  let totalCount = 0, totalRev = 0;
-  const memberSet = new Set();
-  const weekMap = {};
-
-  allCases.forEach(c => {
+  cases.forEach(function(c) {
     const price = Number(c.sold_price || c.price || 0);
-    totalCount++;
     totalRev += price;
-    if (c.member_id) memberSet.add(c.member_id);
+    if (c.member_id) memSet.add(c.member_id);
 
-    const item = itemCache[c.item_id] || {};
-    const product = productCache[item.product_id] || {};
-    const cat = (product.category && product.category.name) || item.category_name || '未分類';
-    const brand = (product.attribute && product.attribute.brand) || item.brand || '不明';
-    catCount[cat] = (catCount[cat]||0) + 1;
-    catRev[cat] = (catRev[cat]||0) + price;
-    brandCount[brand] = (brandCount[brand]||0) + 1;
-    brandRev[brand] = (brandRev[brand]||0) + price;
+    const item = items[c.item_id] || {};
+    const prod = products[item.product_id] || {};
+    const cat = (prod.category && prod.category.name) || item.category_name || '未分類';
+    const brand = (prod.attribute && prod.attribute.brand) || item.brand_name || '不明';
+    catC[cat] = (catC[cat]||0) + 1; catR[cat] = (catR[cat]||0) + price;
+    brandC[brand] = (brandC[brand]||0) + 1; brandR[brand] = (brandR[brand]||0) + price;
 
-    const member = memberCache[c.member_id] || {};
-    const market = normalizeMarket(member.name || '');
-    marketCount[market] = (marketCount[market]||0) + 1;
-    marketRev[market] = (marketRev[market]||0) + price;
+    const mkt = normMkt((members[c.member_id] && members[c.member_id].name) || '');
+    mktC[mkt] = (mktC[mkt]||0) + 1; mktR[mkt] = (mktR[mkt]||0) + price;
 
     if (c.sold_at) {
-      const d = new Date(c.sold_at);
-      const week = getWeekKey(d);
-      weekMap[week] = (weekMap[week]||0) + 1;
+      const wk = weekKey(new Date(c.sold_at));
+      weekC[wk] = (weekC[wk]||0) + 1;
     }
   });
 
-  document.getElementById('kpi-count').textContent = totalCount.toLocaleString();
-  document.getElementById('kpi-revenue').textContent = '¥' + totalRev.toLocaleString();
-  document.getElementById('kpi-avg').textContent = totalCount ? '¥' + Math.round(totalRev/totalCount).toLocaleString() : '—';
-  document.getElementById('kpi-members').textContent = memberSet.size.toLocaleString();
+  document.getElementById('v-count').textContent = cases.length.toLocaleString();
+  document.getElementById('v-rev').textContent = '¥' + totalRev.toLocaleString();
+  document.getElementById('v-avg').textContent = cases.length ? '¥' + Math.round(totalRev/cases.length).toLocaleString() : '—';
+  document.getElementById('v-mem').textContent = memSet.size.toLocaleString();
 
-  chartData = {
-    cat: { count: catCount, revenue: catRev },
-    brand: { count: brandCount, revenue: brandRev },
-    market: { count: marketCount, revenue: marketRev }
-  };
-
-  renderBars('chart-category', catCount);
-  renderBars('chart-brand', brandCount);
-  renderBars('chart-market', marketCount);
-  renderTrend('chart-trend', weekMap);
-  log('グラフ描画完了', 'ok');
+  bars('c-cat', catC);
+  bars('c-brand', brandC);
+  bars('c-mkt', mktC);
+  trend('c-trend', weekC);
+  addLog('完了！', 'ok');
 }
 
-function getWeekKey(d) {
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day===0 ? -6 : 1);
-  const mon = new Date(d);
-  mon.setDate(diff);
-  return mon.toISOString().split('T')[0];
+function normMkt(name) {
+  if (!name) return 'その他';
+  const n = name.toLowerCase();
+  if (n.indexOf('メルカリ') >= 0 || n.indexOf('mercari') >= 0) return 'メルカリ';
+  if (n.indexOf('ヤフオク') >= 0 || n.indexOf('yahoo') >= 0) return 'ヤフオク';
+  if (n.indexOf('楽天') >= 0 || n.indexOf('rakuten') >= 0) return '楽天';
+  if (n.indexOf('amazon') >= 0 || n.indexOf('アマゾン') >= 0) return 'Amazon';
+  if (n.indexOf('paypay') >= 0 || n.indexOf('ペイペイ') >= 0) return 'PayPayフリマ';
+  if (n.indexOf('店頭') >= 0 || n.indexOf('店舗') >= 0) return '店頭';
+  return name;
 }
 
-function renderBars(elId, data) {
-  const el = document.getElementById(elId);
-  const sorted = Object.entries(data).sort((a,b) => b[1]-a[1]).slice(0,8);
+function weekKey(d) {
+  const diff = d.getDate() - d.getDay() + (d.getDay()===0 ? -6 : 1);
+  const m = new Date(d); m.setDate(diff);
+  return m.toISOString().slice(0,10);
+}
+
+function bars(id, obj) {
+  const el = document.getElementById(id);
+  const sorted = Object.entries(obj).sort(function(a,b){ return b[1]-a[1]; }).slice(0,8);
   if (!sorted.length) { el.innerHTML = '<div class="empty">データなし</div>'; return; }
   const max = sorted[0][1];
-  el.innerHTML = sorted.map(([name, val]) => `
-    <div class="bar-row">
-      <span class="name" title="${name}">${name}</span>
-      <div class="bar-wrap"><div class="bar" style="width:${Math.round(val/max*100)}%"></div></div>
-      <span class="count">${typeof val === 'number' && val > 1000 ? '¥'+Math.round(val/1000)+'k' : val.toLocaleString()}</span>
-    </div>
-  `).join('');
+  el.innerHTML = sorted.map(function(item) {
+    const nm = item[0], v = item[1];
+    const disp = v > 10000 ? '¥' + Math.round(v/1000) + 'k' : v.toLocaleString();
+    return '<div class="brow"><span class="nm" title="' + nm + '">' + nm + '</span><div class="track"><div class="fill" style="width:' + Math.round(v/max*100) + '%"></div></div><span class="cnt">' + disp + '</span></div>';
+  }).join('');
 }
 
-function renderTrend(elId, weekMap) {
-  const el = document.getElementById(elId);
-  const sorted = Object.entries(weekMap).sort((a,b) => a[0].localeCompare(b[0]));
-  if (!sorted.length) { el.innerHTML = '<div class="empty">データなし</div>'; return; }
-  const max = Math.max(...sorted.map(v => v[1]));
-  const W = 400, H = 140, pad = 32;
-  const pts = sorted.map((v, i) => {
-    const x = pad + i * (W - pad*2) / Math.max(sorted.length-1, 1);
-    const y = H - pad - (v[1]/max) * (H - pad*2);
-    return [Math.round(x), Math.round(y), v[0], v[1]];
+function trend(id, obj) {
+  const el = document.getElementById(id);
+  const pts = Object.entries(obj).sort(function(a,b){ return a[0] < b[0] ? -1 : 1; });
+  if (!pts.length) { el.innerHTML = '<div class="empty">データなし</div>'; return; }
+  const W=400, H=130, px=30, py=20;
+  const max = Math.max.apply(null, pts.map(function(p){ return p[1]; }));
+  const coords = pts.map(function(p, i) {
+    return {
+      x: Math.round(px + i*(W-px*2)/Math.max(pts.length-1,1)),
+      y: Math.round(py + (1 - p[1]/max)*(H-py*2)),
+      wk: p[0], v: p[1]
+    };
   });
-  const path = pts.map((p,i) => (i===0?'M':'L') + p[0]+','+p[1]).join(' ');
-  const area = path + ' L'+pts[pts.length-1][0]+','+(H-pad)+' L'+pts[0][0]+','+(H-pad)+' Z';
-  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:140px;">
-    <path d="${area}" fill="#1a1a1a" fill-opacity="0.08"/>
-    <path d="${path}" fill="none" stroke="#1a1a1a" stroke-width="1.5"/>
-    ${pts.map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="#1a1a1a"/><title>${p[2]}: ${p[3]}件</title>`).join('')}
-    ${pts.filter((_,i)=>i%Math.ceil(sorted.length/6)===0).map(p => `<text x="${p[0]}" y="${H-8}" text-anchor="middle" font-size="9" fill="#aaa">${p[2].slice(5)}</text>`).join('')}
-  </svg>`;
+  const line = coords.map(function(p,i){ return (i?'L':'M') + p.x + ',' + p.y; }).join(' ');
+  const area = line + ' L' + coords[coords.length-1].x + ',' + (H-py) + ' L' + coords[0].x + ',' + (H-py) + ' Z';
+  const dots = coords.map(function(p){ return '<circle cx="' + p.x + '" cy="' + p.y + '" r="3" fill="#111"><title>' + p.wk + ': ' + p.v + '件</title></circle>'; }).join('');
+  const step = Math.ceil(pts.length/5);
+  const lbls = coords.filter(function(_,i){ return i % step === 0; }).map(function(p){ return '<text x="' + p.x + '" y="' + (H-4) + '" text-anchor="middle" font-size="9" fill="#bbb">' + p.wk.slice(5) + '</text>'; }).join('');
+  el.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:130px;"><path d="' + area + '" fill="#111" fill-opacity="0.07"/><path d="' + line + '" fill="none" stroke="#111" stroke-width="1.5"/>' + dots + lbls + '</svg>';
 }
 
-function switchTab(group, type, btn) {
-  tabState[group] = type;
-  btn.closest('.tab-row').querySelectorAll('button').forEach(b => b.classList.remove('active'));
+function sw(group, type, btn) {
+  btn.closest('.tabs').querySelectorAll('button').forEach(function(b){ b.classList.remove('active'); });
   btn.classList.add('active');
-  const idMap = { cat: 'chart-category', brand: 'chart-brand', market: 'chart-market' };
-  if (chartData[group] && chartData[group][type]) {
-    renderBars(idMap[group], chartData[group][type]);
-  }
+  const idMap = {cat:'c-cat', brand:'c-brand', mkt:'c-mkt'};
+  bars(idMap[group], data[group][type]);
 }
 
-initDates();
+setDays(30, document.getElementById('d30'));
 </script>
 </body>
 </html>
