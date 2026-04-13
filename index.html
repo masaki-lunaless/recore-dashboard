@@ -7,13 +7,11 @@
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f4f4f0; color: #111; font-size: 14px; }
-
 header { background: #111; color: #fff; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; }
 header h1 { font-size: 16px; font-weight: 500; letter-spacing: 0.08em; }
 #status { font-size: 12px; color: #666; }
 #status.ok { color: #4caf50; }
 #status.err { color: #f44336; }
-
 .bar { background: #fff; border-bottom: 1px solid #e8e8e4; padding: 12px 24px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .bar label { font-size: 12px; color: #666; }
 .bar input[type=password], .bar input[type=date] { padding: 7px 11px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; }
@@ -21,37 +19,29 @@ header h1 { font-size: 16px; font-weight: 500; letter-spacing: 0.08em; }
 .bar button { padding: 7px 14px; border: 1px solid #ddd; border-radius: 6px; font-size: 12px; cursor: pointer; background: #f4f4f0; }
 .bar button:hover { background: #e8e8e4; }
 .bar button.primary { background: #111; color: #fff; border-color: #111; }
-.bar button.primary:hover { background: #333; }
 .bar button.active { background: #111; color: #fff; border-color: #111; }
-
 main { max-width: 1400px; margin: 0 auto; padding: 20px 24px; }
-
 #log { font-family: monospace; font-size: 12px; background: #fff; border: 1px solid #e8e8e4; border-radius: 8px; padding: 12px; max-height: 100px; overflow-y: auto; margin-bottom: 20px; line-height: 1.9; color: #666; }
 #log .ok { color: #4caf50; }
 #log .err { color: #f44336; }
 #log .info { color: #1976d2; }
-
 .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
 @media(max-width:700px){ .kpis { grid-template-columns: repeat(2,1fr); } }
 .kpi { background: #fff; border: 1px solid #e8e8e4; border-radius: 8px; padding: 16px; }
 .kpi .lbl { font-size: 11px; color: #999; margin-bottom: 6px; }
 .kpi .val { font-size: 22px; font-weight: 500; }
-
 .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 @media(max-width:900px){ .charts { grid-template-columns: 1fr; } }
 .card { background: #fff; border: 1px solid #e8e8e4; border-radius: 8px; padding: 18px; }
 .card h3 { font-size: 12px; font-weight: 500; color: #666; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.05em; }
-
 .tabs { display: flex; gap: 4px; margin-bottom: 14px; }
 .tabs button { padding: 4px 10px; border: 1px solid #ddd; border-radius: 20px; font-size: 11px; cursor: pointer; background: #f4f4f0; }
 .tabs button.active { background: #111; color: #fff; border-color: #111; }
-
 .brow { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
 .brow .nm { font-size: 12px; color: #444; width: 110px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .brow .track { flex: 1; background: #f0f0ec; border-radius: 3px; height: 7px; }
 .brow .fill { height: 7px; border-radius: 3px; background: #111; }
 .brow .cnt { font-size: 12px; color: #888; width: 70px; text-align: right; flex-shrink: 0; }
-
 .empty { text-align: center; padding: 32px; color: #ccc; font-size: 12px; }
 </style>
 </head>
@@ -96,7 +86,6 @@ main { max-width: 1400px; margin: 0 auto; padding: 20px 24px; }
       </div>
       <div id="c-cat"><div class="empty">データなし</div></div>
     </div>
-
     <div class="card">
       <h3>ブランド別</h3>
       <div class="tabs">
@@ -105,7 +94,6 @@ main { max-width: 1400px; margin: 0 auto; padding: 20px 24px; }
       </div>
       <div id="c-brand"><div class="empty">データなし</div></div>
     </div>
-
     <div class="card">
       <h3>マケプレ別</h3>
       <div class="tabs">
@@ -114,7 +102,6 @@ main { max-width: 1400px; margin: 0 auto; padding: 20px 24px; }
       </div>
       <div id="c-mkt"><div class="empty">データなし</div></div>
     </div>
-
     <div class="card">
       <h3>週次トレンド</h3>
       <div id="c-trend"><div class="empty">データなし</div></div>
@@ -132,6 +119,11 @@ function addLog(msg, type) {
   const t = new Date().toLocaleTimeString('ja-JP');
   el.innerHTML += '<span class="' + type + '">[' + t + '] ' + msg + '\n</span>';
   el.scrollTop = el.scrollHeight;
+}
+
+function toDateTimeStr(dateStr, endOfDay) {
+  // "2026-04-01" → "2026-04-01 00:00:00" or "2026-04-01 23:59:59"
+  return dateStr + (endOfDay ? ' 23:59:59' : ' 00:00:00');
 }
 
 function setDays(n, btn) {
@@ -178,16 +170,16 @@ async function load() {
   if (!KEY) { addLog('先に接続してください', 'err'); return; }
   const from = document.getElementById('from').value;
   const to = document.getElementById('to').value;
-  addLog('データ取得開始...', 'info');
+  addLog('データ取得開始... (' + from + ' 〜 ' + to + ')', 'info');
 
   try {
     let cases = [];
     let cursor = '';
     while (true) {
       const params = { limit: 100, cursor: cursor };
-      if (from) params.done_at_from = Math.floor(new Date(from + 'T00:00:00').getTime() / 1000);
-      if (to) params.done_at_to = Math.floor(new Date(to + 'T23:59:59').getTime() / 1000);
-      const res = await req('/sas_cases', params);
+      if (from) params.done_at_from = toDateTimeStr(from, false);
+      if (to) params.done_at_to = toDateTimeStr(to, true);
+      const res = await req('/v2/sas_cases', params);
       const rows = Array.isArray(res) ? res : (res.data || []);
       cases = cases.concat(rows);
       addLog(cases.length + '件取得中...', 'info');
@@ -205,11 +197,10 @@ async function load() {
 async function buildData(cases) {
   addLog('商品・会員情報を取得中...', 'info');
 
-  // goods配列からitem_idを収集
-  const itemIds = [];
   const itemIdSet = {};
+  const itemIds = [];
   cases.forEach(function(c) {
-    if (c.goods && c.goods.length > 0) {
+    if (c.goods) {
       c.goods.forEach(function(g) {
         if (g.item_id && !itemIdSet[g.item_id]) {
           itemIdSet[g.item_id] = true;
@@ -219,8 +210,8 @@ async function buildData(cases) {
     }
   });
 
-  const memberIds = [];
   const memberIdSet = {};
+  const memberIds = [];
   cases.forEach(function(c) {
     if (c.member_id && !memberIdSet[c.member_id]) {
       memberIdSet[c.member_id] = true;
@@ -257,18 +248,15 @@ async function buildData(cases) {
   data = { cat:{count:catC,rev:catR}, brand:{count:brandC,rev:brandR}, mkt:{count:mktC,rev:mktR} };
 
   cases.forEach(function(c) {
-    // 金額はsummary.totalから取得（税込合計）
     const price = Number((c.summary && c.summary.total) || 0);
     totalRev += price;
     if (c.member_id) memSet.add(c.member_id);
 
-    // マケプレ
     const mkt = normMkt((members[c.member_id] && members[c.member_id].name) || '');
     mktC[mkt] = (mktC[mkt]||0) + 1;
     mktR[mkt] = (mktR[mkt]||0) + price;
 
-    // goods内の各商品でカテゴリ・ブランドを集計
-    if (c.goods && c.goods.length > 0) {
+    if (c.goods) {
       c.goods.forEach(function(g) {
         const item = items[g.item_id] || {};
         const prod = products[item.product_id] || {};
@@ -282,7 +270,6 @@ async function buildData(cases) {
       });
     }
 
-    // 週次トレンド（done_atはUnixタイムスタンプ）
     if (c.done_at) {
       const wk = weekKey(new Date(c.done_at * 1000));
       weekC[wk] = (weekC[wk]||0) + 1;
