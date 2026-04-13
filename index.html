@@ -172,7 +172,7 @@ function initDates() {
 async function apiFetch(path, params={}) {
   const url = new URL(BASE + path);
   Object.keys(params).forEach(k => url.searchParams.set(k, params[k]));
-  const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + API_KEY, 'Content-Type': 'application/json' } });
+  const res = await fetch(url, { headers: { 'Authorization': API_KEY, 'Content-Type': 'application/json' } });
   if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
   return res.json();
 }
