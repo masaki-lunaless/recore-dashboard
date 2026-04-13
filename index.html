@@ -122,7 +122,6 @@ function addLog(msg, type) {
 }
 
 function toDateTimeStr(dateStr, endOfDay) {
-  // "2026-04-01" → "2026-04-01 00:00:00" or "2026-04-01 23:59:59"
   return dateStr + (endOfDay ? ' 23:59:59' : ' 00:00:00');
 }
 
@@ -252,7 +251,8 @@ async function buildData(cases) {
     totalRev += price;
     if (c.member_id) memSet.add(c.member_id);
 
-    const mkt = normMkt((members[c.member_id] && members[c.member_id].name) || '');
+    // company_name → last_name の順でマケプレ名を取得
+    const mkt = normMkt(members[c.member_id]);
     mktC[mkt] = (mktC[mkt]||0) + 1;
     mktR[mkt] = (mktR[mkt]||0) + price;
 
@@ -288,12 +288,13 @@ async function buildData(cases) {
   addLog('完了！', 'ok');
 }
 
-function normMkt(name) {
+function normMkt(member) {
+  const name = (member && (member.company_name || member.last_name)) || '';
   if (!name) return 'その他';
   const n = name.toLowerCase();
   if (n.indexOf('メルカリ') >= 0 || n.indexOf('mercari') >= 0) return 'メルカリ';
   if (n.indexOf('ヤフオク') >= 0 || n.indexOf('yahoo') >= 0) return 'ヤフオク';
-  if (n.indexOf('楽天') >= 0 || n.indexOf('rakuten') >= 0) return '楽天';
+  if (n.indexOf('楽天') >= 0 || n.indexOf('rakuten') >= 0) return '楽天市場';
   if (n.indexOf('amazon') >= 0 || n.indexOf('アマゾン') >= 0) return 'Amazon';
   if (n.indexOf('paypay') >= 0 || n.indexOf('ペイペイ') >= 0) return 'PayPayフリマ';
   if (n.indexOf('店頭') >= 0 || n.indexOf('店舗') >= 0) return '店頭';
