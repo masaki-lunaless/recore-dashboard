@@ -20,6 +20,9 @@ header h1 { font-size: 16px; font-weight: 500; letter-spacing: 0.08em; }
 .bar button:hover { background: #e8e8e4; }
 .bar button.primary { background: #111; color: #fff; border-color: #111; }
 .bar button.active { background: #111; color: #fff; border-color: #111; }
+.bar button.export { background: #1976d2; color: #fff; border-color: #1976d2; }
+.bar button.export:hover { background: #1565c0; }
+.bar button.export:disabled { background: #aaa; border-color: #aaa; cursor: not-allowed; }
 main { max-width: 1400px; margin: 0 auto; padding: 20px 24px; }
 #log { font-family: monospace; font-size: 12px; background: #fff; border: 1px solid #e8e8e4; border-radius: 8px; padding: 12px; max-height: 100px; overflow-y: auto; margin-bottom: 20px; line-height: 1.9; color: #666; }
 #log .ok { color: #4caf50; }
@@ -65,6 +68,8 @@ main { max-width: 1400px; margin: 0 auto; padding: 20px 24px; }
   <button class="active" id="d30" onclick="setDays(30,this)">30日</button>
   <button onclick="setDays(90,this)">90日</button>
   <button class="primary" onclick="load()">取得</button>
+  <span style="color:#ddd">|</span>
+  <button class="export" id="btn-export" onclick="exportCSV()" disabled>CSVエクスポート</button>
 </div>
 
 <main>
@@ -113,6 +118,7 @@ main { max-width: 1400px; margin: 0 auto; padding: 20px 24px; }
 const API = 'https://co-api.recore-pos.com';
 let KEY = '';
 let data = { cat:{count:{},rev:{}}, brand:{count:{},rev:{}}, mkt:{count:{},rev:{}} };
+let exportRows = []; // CSVエクスポート用の生データ
 
 function addLog(msg, type) {
   const el = document.getElementById('log');
@@ -131,7 +137,7 @@ function setDays(n, btn) {
   from.setDate(from.getDate() - n);
   document.getElementById('to').value = to.toISOString().slice(0,10);
   document.getElementById('from').value = from.toISOString().slice(0,10);
-  document.querySelectorAll('.bar button:not(.primary)').forEach(function(b){ b.classList.remove('active'); });
+  document.querySelectorAll('.bar button:not(.primary):not(.export)').forEach(function(b){ b.classList.remove('active'); });
   btn.classList.add('active');
 }
 
@@ -170,6 +176,7 @@ async function load() {
   const from = document.getElementById('from').value;
   const to = document.getElementById('to').value;
   addLog('データ取得開始... (' + from + ' 〜 ' + to + ')', 'info');
+  document.getElementById('btn-export').disabled = true;
 
   try {
     let cases = [];
@@ -245,16 +252,20 @@ async function buildData(cases) {
   const memSet = new Set();
   const catC={}, catR={}, brandC={}, brandR={}, mktC={}, mktR={}, weekC={};
   data = { cat:{count:catC,rev:catR}, brand:{count:brandC,rev:brandR}, mkt:{count:mktC,rev:mktR} };
+  exportRows = [];
 
   cases.forEach(function(c) {
     const price = Number((c.summary && c.summary.total) || 0);
+    const subtotal = Number((c.summary && c.summary.sub_total) || 0);
+    const tax = Number((c.summary && c.summary.total) || 0) - subtotal;
     totalRev += price;
     if (c.member_id) memSet.add(c.member_id);
 
-    // company_name → last_name の順でマケプレ名を取得
     const mkt = normMkt(members[c.member_id]);
     mktC[mkt] = (mktC[mkt]||0) + 1;
     mktR[mkt] = (mktR[mkt]||0) + price;
+
+    const doneAt = c.done_at ? fmtDate(new Date(c.done_at * 1000)) : '';
 
     if (c.goods) {
       c.goods.forEach(function(g) {
@@ -267,6 +278,21 @@ async function buildData(cases) {
         catR[cat] = (catR[cat]||0) + gPrice;
         brandC[brand] = (brandC[brand]||0) + 1;
         brandR[brand] = (brandR[brand]||0) + gPrice;
+
+        // エクスポート用行データ（1商品1行）
+        exportRows.push({
+          date: doneAt,
+          code: c.code || '',
+          category: cat,
+          brand: brand,
+          marketplace: mkt,
+          item_id: g.item_id || '',
+          quantity: g.quantity || 1,
+          unit_price: g.unit_price || 0,
+          subtotal: subtotal,
+          tax: tax,
+          total: price
+        });
       });
     }
 
@@ -285,7 +311,50 @@ async function buildData(cases) {
   bars('c-brand', brandC);
   bars('c-mkt', mktC);
   trend('c-trend', weekC);
-  addLog('完了！', 'ok');
+
+  document.getElementById('btn-export').disabled = false;
+  addLog('完了！CSVエクスポートが可能になりました', 'ok');
+}
+
+function fmtDate(d) {
+  return d.getFullYear() + '/' + pad(d.getMonth()+1) + '/' + pad(d.getDate());
+}
+
+function pad(n) {
+  return n < 10 ? '0' + n : '' + n;
+}
+
+function exportCSV() {
+  if (!exportRows.length) { addLog('データがありません', 'err'); return; }
+
+  const headers = ['日付', 'ケースコード', 'カテゴリ', 'ブランド', 'マケプレ', '在庫ID', '数量', '販売単価', '小計（税抜）', '消費税', '合計（税込）'];
+  const rows = exportRows.map(function(r) {
+    return [r.date, r.code, r.category, r.brand, r.marketplace, r.item_id, r.quantity, r.unit_price, r.subtotal, r.tax, r.total];
+  });
+
+  const csv = [headers].concat(rows).map(function(row) {
+    return row.map(function(cell) {
+      const s = String(cell);
+      // カンマ・改行・ダブルクォートを含む場合はダブルクォートで囲む
+      if (s.indexOf(',') >= 0 || s.indexOf('\n') >= 0 || s.indexOf('"') >= 0) {
+        return '"' + s.replace(/"/g, '""') + '"';
+      }
+      return s;
+    }).join(',');
+  }).join('\n');
+
+  // BOM付きUTF-8（Excelで文字化けしないように）
+  const bom = '\uFEFF';
+  const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const from = document.getElementById('from').value.replace(/-/g, '');
+  const to = document.getElementById('to').value.replace(/-/g, '');
+  a.href = url;
+  a.download = 'recore_' + from + '_' + to + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  addLog('CSVをダウンロードしました', 'ok');
 }
 
 function normMkt(member) {
