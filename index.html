@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -83,7 +82,7 @@ main { max-width: 1400px; margin: 0 auto; padding: 20px 24px; }
 
   <div class="kpis">
     <div class="kpi"><div class="lbl">売上件数</div><div class="val" id="v-count">—</div></div>
-    <div class="kpi"><div class="lbl">売上金額</div><div class="val" id="v-rev">—</div></div>
+    <div class="kpi"><div class="lbl">売上金額（税込）</div><div class="val" id="v-rev">—</div></div>
     <div class="kpi"><div class="lbl">平均単価</div><div class="val" id="v-avg">—</div></div>
     <div class="kpi"><div class="lbl">ユニーク会員</div><div class="val" id="v-mem">—</div></div>
   </div>
@@ -186,8 +185,8 @@ async function load() {
     let cursor = '';
     while (true) {
       const params = { limit: 100, cursor: cursor };
-      if (from) params.sold_at_from = from + ' 00:00:00';
-      if (to) params.sold_at_to = to + ' 23:59:59';
+      if (from) params.done_at_from = Math.floor(new Date(from + 'T00:00:00').getTime() / 1000);
+      if (to) params.done_at_to = Math.floor(new Date(to + 'T23:59:59').getTime() / 1000);
       const res = await req('/sas_cases', params);
       const rows = Array.isArray(res) ? res : (res.data || []);
       cases = cases.concat(rows);
@@ -206,12 +205,32 @@ async function load() {
 async function buildData(cases) {
   addLog('商品・会員情報を取得中...', 'info');
 
-  const itemIds = Array.from(new Set(cases.map(function(c){ return c.item_id; }).filter(Boolean)));
-  const memberIds = Array.from(new Set(cases.map(function(c){ return c.member_id; }).filter(Boolean)));
+  // goods配列からitem_idを収集
+  const itemIds = [];
+  const itemIdSet = {};
+  cases.forEach(function(c) {
+    if (c.goods && c.goods.length > 0) {
+      c.goods.forEach(function(g) {
+        if (g.item_id && !itemIdSet[g.item_id]) {
+          itemIdSet[g.item_id] = true;
+          itemIds.push(g.item_id);
+        }
+      });
+    }
+  });
+
+  const memberIds = [];
+  const memberIdSet = {};
+  cases.forEach(function(c) {
+    if (c.member_id && !memberIdSet[c.member_id]) {
+      memberIdSet[c.member_id] = true;
+      memberIds.push(c.member_id);
+    }
+  });
 
   const items = {}, products = {}, members = {};
 
-  for (let i = 0; i < itemIds.length; i += 5) {
+  for (var i = 0; i < itemIds.length; i += 5) {
     await Promise.all(itemIds.slice(i, i+5).map(async function(id) {
       try {
         const item = await req('/items/' + id);
@@ -224,8 +243,8 @@ async function buildData(cases) {
     }));
   }
 
-  for (let i = 0; i < memberIds.length; i += 5) {
-    await Promise.all(memberIds.slice(i, i+5).map(async function(id) {
+  for (var j = 0; j < memberIds.length; j += 5) {
+    await Promise.all(memberIds.slice(j, j+5).map(async function(id) {
       try { members[id] = await req('/members/' + id); } catch(e) {}
     }));
   }
@@ -238,22 +257,34 @@ async function buildData(cases) {
   data = { cat:{count:catC,rev:catR}, brand:{count:brandC,rev:brandR}, mkt:{count:mktC,rev:mktR} };
 
   cases.forEach(function(c) {
-    const price = Number(c.sold_price || c.price || 0);
+    // 金額はsummary.totalから取得（税込合計）
+    const price = Number((c.summary && c.summary.total) || 0);
     totalRev += price;
     if (c.member_id) memSet.add(c.member_id);
 
-    const item = items[c.item_id] || {};
-    const prod = products[item.product_id] || {};
-    const cat = (prod.category && prod.category.name) || item.category_name || '未分類';
-    const brand = (prod.attribute && prod.attribute.brand) || item.brand_name || '不明';
-    catC[cat] = (catC[cat]||0) + 1; catR[cat] = (catR[cat]||0) + price;
-    brandC[brand] = (brandC[brand]||0) + 1; brandR[brand] = (brandR[brand]||0) + price;
-
+    // マケプレ
     const mkt = normMkt((members[c.member_id] && members[c.member_id].name) || '');
-    mktC[mkt] = (mktC[mkt]||0) + 1; mktR[mkt] = (mktR[mkt]||0) + price;
+    mktC[mkt] = (mktC[mkt]||0) + 1;
+    mktR[mkt] = (mktR[mkt]||0) + price;
 
-    if (c.sold_at) {
-      const wk = weekKey(new Date(c.sold_at));
+    // goods内の各商品でカテゴリ・ブランドを集計
+    if (c.goods && c.goods.length > 0) {
+      c.goods.forEach(function(g) {
+        const item = items[g.item_id] || {};
+        const prod = products[item.product_id] || {};
+        const cat = (prod.category && prod.category.name) || item.category_name || '未分類';
+        const brand = (prod.attribute && prod.attribute.brand) || item.brand_name || '不明';
+        const gPrice = Number(g.unit_price || 0) * Number(g.quantity || 1);
+        catC[cat] = (catC[cat]||0) + 1;
+        catR[cat] = (catR[cat]||0) + gPrice;
+        brandC[brand] = (brandC[brand]||0) + 1;
+        brandR[brand] = (brandR[brand]||0) + gPrice;
+      });
+    }
+
+    // 週次トレンド（done_atはUnixタイムスタンプ）
+    if (c.done_at) {
+      const wk = weekKey(new Date(c.done_at * 1000));
       weekC[wk] = (weekC[wk]||0) + 1;
     }
   });
@@ -284,7 +315,8 @@ function normMkt(name) {
 
 function weekKey(d) {
   const diff = d.getDate() - d.getDay() + (d.getDay()===0 ? -6 : 1);
-  const m = new Date(d); m.setDate(diff);
+  const m = new Date(d);
+  m.setDate(diff);
   return m.toISOString().slice(0,10);
 }
 
