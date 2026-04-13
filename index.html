@@ -1,1 +1,381 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RECORE ダッシュボード</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f0; color: #1a1a1a; font-size: 14px; }
 
+  .header { background: #1a1a1a; color: #fff; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+  .header h1 { font-size: 18px; font-weight: 500; letter-spacing: 0.05em; }
+  .header .status { font-size: 12px; color: #888; }
+  .header .status.connected { color: #4caf50; }
+
+  .api-bar { background: #fff; border-bottom: 0.5px solid #ddd; padding: 12px 24px; display: flex; align-items: center; gap: 12px; }
+  .api-bar label { font-size: 12px; color: #666; white-space: nowrap; }
+  .api-bar input { flex: 1; padding: 8px 12px; border: 0.5px solid #ccc; border-radius: 6px; font-size: 13px; font-family: monospace; }
+  .api-bar button { padding: 8px 16px; background: #1a1a1a; color: #fff; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; white-space: nowrap; }
+  .api-bar button:hover { background: #333; }
+
+  .date-bar { background: #fff; border-bottom: 0.5px solid #ddd; padding: 10px 24px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .date-bar label { font-size: 12px; color: #666; }
+  .date-bar input[type="date"] { padding: 6px 10px; border: 0.5px solid #ccc; border-radius: 6px; font-size: 13px; }
+  .date-bar button { padding: 6px 12px; border: 0.5px solid #ccc; border-radius: 6px; font-size: 12px; cursor: pointer; background: #f5f5f0; }
+  .date-bar button:hover { background: #e8e8e4; }
+  .date-bar button.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+
+  .main { padding: 24px; max-width: 1400px; margin: 0 auto; }
+
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .kpi { background: #fff; border-radius: 8px; border: 0.5px solid #e0e0e0; padding: 16px; }
+  .kpi .label { font-size: 11px; color: #888; margin-bottom: 6px; }
+  .kpi .value { font-size: 24px; font-weight: 500; }
+  .kpi .sub { font-size: 11px; color: #888; margin-top: 4px; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  @media (max-width: 900px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+
+  .card { background: #fff; border-radius: 8px; border: 0.5px solid #e0e0e0; padding: 20px; }
+  .card h3 { font-size: 13px; font-weight: 500; color: #444; margin-bottom: 16px; }
+
+  .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .bar-row .name { font-size: 12px; color: #444; width: 120px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-row .bar-wrap { flex: 1; background: #f0f0ec; border-radius: 3px; height: 8px; }
+  .bar-row .bar { height: 8px; border-radius: 3px; background: #1a1a1a; transition: width 0.4s; }
+  .bar-row .count { font-size: 12px; color: #666; width: 60px; text-align: right; flex-shrink: 0; }
+
+  .trend-chart { position: relative; height: 160px; }
+  svg.chart { width: 100%; height: 100%; }
+
+  .log { font-size: 12px; color: #888; padding: 12px; background: #f9f9f7; border-radius: 6px; max-height: 120px; overflow-y: auto; line-height: 1.8; font-family: monospace; }
+  .log .ok { color: #4caf50; }
+  .log .err { color: #e53935; }
+  .log .info { color: #1976d2; }
+
+  .loading { text-align: center; padding: 40px; color: #aaa; font-size: 13px; }
+  .empty { text-align: center; padding: 32px; color: #bbb; font-size: 12px; }
+
+  .tab-row { display: flex; gap: 4px; margin-bottom: 16px; }
+  .tab-row button { padding: 5px 12px; border: 0.5px solid #ccc; border-radius: 20px; font-size: 12px; cursor: pointer; background: #f5f5f0; }
+  .tab-row button.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>RECORE DASHBOARD</h1>
+  <span class="status" id="conn-status">未接続</span>
+</div>
+
+<div class="api-bar">
+  <label>API KEY</label>
+  <input type="password" id="api-key" placeholder="RECOREのAPIキーを入力してください" />
+  <button onclick="connect()">接続</button>
+</div>
+
+<div class="date-bar">
+  <label>期間</label>
+  <input type="date" id="date-from" />
+  <span style="color:#999">〜</span>
+  <input type="date" id="date-to" />
+  <button onclick="setRange(7)">7日</button>
+  <button onclick="setRange(30)" class="active" id="btn30">30日</button>
+  <button onclick="setRange(90)">90日</button>
+  <button onclick="loadData()" style="background:#1a1a1a;color:#fff;border-color:#1a1a1a;">更新</button>
+</div>
+
+<div class="main">
+  <div id="log-area" class="log" style="margin-bottom:16px;">APIキーを入力して接続してください。</div>
+
+  <div class="kpi-grid">
+    <div class="kpi"><div class="label">総売上件数</div><div class="value" id="kpi-count">—</div><div class="sub">成約件数</div></div>
+    <div class="kpi"><div class="label">総売上金額</div><div class="value" id="kpi-revenue">—</div><div class="sub">税込</div></div>
+    <div class="kpi"><div class="label">平均単価</div><div class="value" id="kpi-avg">—</div><div class="sub">1件あたり</div></div>
+    <div class="kpi"><div class="label">ユニーク会員数</div><div class="value" id="kpi-members">—</div><div class="sub">購入者数</div></div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>カテゴリ別 売上件数</h3>
+      <div class="tab-row">
+        <button class="active" onclick="switchTab('cat','count',this)">件数</button>
+        <button onclick="switchTab('cat','revenue',this)">金額</button>
+      </div>
+      <div id="chart-category"><div class="empty">データなし</div></div>
+    </div>
+    <div class="card">
+      <h3>ブランド別 売上件数</h3>
+      <div class="tab-row">
+        <button class="active" onclick="switchTab('brand','count',this)">件数</button>
+        <button onclick="switchTab('brand','revenue',this)">金額</button>
+      </div>
+      <div id="chart-brand"><div class="empty">データなし</div></div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>マケプレ別 売上件数</h3>
+      <div class="tab-row">
+        <button class="active" onclick="switchTab('market','count',this)">件数</button>
+        <button onclick="switchTab('market','revenue',this)">金額</button>
+      </div>
+      <div id="chart-market"><div class="empty">データなし</div></div>
+    </div>
+    <div class="card">
+      <h3>週次トレンド</h3>
+      <div id="chart-trend"><div class="empty">データなし</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const BASE = 'https://api.recore.jp';
+let API_KEY = '';
+let allCases = [];
+let itemCache = {};
+let productCache = {};
+let memberCache = {};
+let chartData = { cat: {}, brand: {}, market: {} };
+let tabState = { cat: 'count', brand: 'count', market: 'count' };
+
+function log(msg, type='info') {
+  const el = document.getElementById('log-area');
+  const span = document.createElement('span');
+  span.className = type;
+  span.textContent = '[' + new Date().toLocaleTimeString('ja-JP') + '] ' + msg + '\n';
+  el.appendChild(span);
+  el.scrollTop = el.scrollHeight;
+}
+
+function setRange(days) {
+  const to = new Date();
+  const from = new Date();
+  from.setDate(from.getDate() - days);
+  document.getElementById('date-to').value = to.toISOString().split('T')[0];
+  document.getElementById('date-from').value = from.toISOString().split('T')[0];
+  document.querySelectorAll('.date-bar button').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+function initDates() {
+  const to = new Date();
+  const from = new Date();
+  from.setDate(from.getDate() - 30);
+  document.getElementById('date-to').value = to.toISOString().split('T')[0];
+  document.getElementById('date-from').value = from.toISOString().split('T')[0];
+}
+
+async function apiFetch(path, params={}) {
+  const url = new URL(BASE + path);
+  Object.keys(params).forEach(k => url.searchParams.set(k, params[k]));
+  const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + API_KEY, 'Content-Type': 'application/json' } });
+  if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+  return res.json();
+}
+
+async function connect() {
+  API_KEY = document.getElementById('api-key').value.trim();
+  if (!API_KEY) { log('APIキーを入力してください', 'err'); return; }
+  log('接続テスト中...', 'info');
+  try {
+    const data = await apiFetch('/sas_cases', { limit: 1 });
+    document.getElementById('conn-status').textContent = '接続済み';
+    document.getElementById('conn-status').className = 'status connected';
+    log('接続成功！データ取得を開始します', 'ok');
+    loadData();
+  } catch(e) {
+    log('接続失敗: ' + e.message, 'err');
+    document.getElementById('conn-status').textContent = '接続エラー';
+  }
+}
+
+async function loadData() {
+  if (!API_KEY) { log('先に接続してください', 'err'); return; }
+  const from = document.getElementById('date-from').value;
+  const to = document.getElementById('date-to').value;
+  log('データ取得中... 期間: ' + from + ' 〜 ' + to, 'info');
+
+  try {
+    allCases = [];
+    let page = 1;
+    let hasMore = true;
+    while (hasMore) {
+      const params = { limit: 100, page };
+      if (from) params.sold_at_from = from;
+      if (to) params.sold_at_to = to;
+      const data = await apiFetch('/sas_cases', params);
+      const items = Array.isArray(data) ? data : (data.data || data.items || []);
+      allCases = allCases.concat(items);
+      log('取得: ' + allCases.length + '件...', 'info');
+      hasMore = items.length === 100;
+      page++;
+      if (page > 20) break;
+    }
+    log('sas_cases 取得完了: ' + allCases.length + '件', 'ok');
+    await enrichData();
+  } catch(e) {
+    log('データ取得エラー: ' + e.message, 'err');
+  }
+}
+
+async function enrichData() {
+  log('商品・会員情報を取得中...', 'info');
+  const itemIds = [...new Set(allCases.map(c => c.item_id).filter(Boolean))];
+  const memberIds = [...new Set(allCases.map(c => c.member_id).filter(Boolean))];
+
+  for (let i = 0; i < itemIds.length; i += 10) {
+    const batch = itemIds.slice(i, i+10);
+    await Promise.all(batch.map(async id => {
+      if (itemCache[id]) return;
+      try {
+        const item = await apiFetch('/items/' + id);
+        itemCache[id] = item;
+        if (item.product_id && !productCache[item.product_id]) {
+          const product = await apiFetch('/products/' + item.product_id);
+          productCache[item.product_id] = product;
+        }
+      } catch(e) {}
+    }));
+  }
+
+  for (let i = 0; i < memberIds.length; i += 10) {
+    const batch = memberIds.slice(i, i+10);
+    await Promise.all(batch.map(async id => {
+      if (memberCache[id]) return;
+      try {
+        const member = await apiFetch('/members/' + id);
+        memberCache[id] = member;
+      } catch(e) {}
+    }));
+  }
+
+  log('エンリッチ完了', 'ok');
+  buildCharts();
+}
+
+function normalizeMarket(name) {
+  if (!name) return 'その他';
+  const n = name.toLowerCase().replace(/\s/g,'');
+  if (n.includes('メルカリ') || n.includes('mercari')) return 'メルカリ';
+  if (n.includes('ヤフオク') || n.includes('yahoo') || n.includes('yahuoku')) return 'ヤフオク';
+  if (n.includes('楽天') || n.includes('rakuten')) return '楽天';
+  if (n.includes('amazon') || n.includes('アマゾン')) return 'Amazon';
+  if (n.includes('paypay') || n.includes('ペイペイ')) return 'PayPayフリマ';
+  if (n.includes('店頭') || n.includes('店舗')) return '店頭';
+  return name;
+}
+
+function buildCharts() {
+  const catCount = {}, catRev = {};
+  const brandCount = {}, brandRev = {};
+  const marketCount = {}, marketRev = {};
+  let totalCount = 0, totalRev = 0;
+  const memberSet = new Set();
+  const weekMap = {};
+
+  allCases.forEach(c => {
+    const price = Number(c.sold_price || c.price || 0);
+    totalCount++;
+    totalRev += price;
+    if (c.member_id) memberSet.add(c.member_id);
+
+    const item = itemCache[c.item_id] || {};
+    const product = productCache[item.product_id] || {};
+    const cat = (product.category && product.category.name) || item.category_name || '未分類';
+    const brand = (product.attribute && product.attribute.brand) || item.brand || '不明';
+    catCount[cat] = (catCount[cat]||0) + 1;
+    catRev[cat] = (catRev[cat]||0) + price;
+    brandCount[brand] = (brandCount[brand]||0) + 1;
+    brandRev[brand] = (brandRev[brand]||0) + price;
+
+    const member = memberCache[c.member_id] || {};
+    const market = normalizeMarket(member.name || '');
+    marketCount[market] = (marketCount[market]||0) + 1;
+    marketRev[market] = (marketRev[market]||0) + price;
+
+    if (c.sold_at) {
+      const d = new Date(c.sold_at);
+      const week = getWeekKey(d);
+      weekMap[week] = (weekMap[week]||0) + 1;
+    }
+  });
+
+  document.getElementById('kpi-count').textContent = totalCount.toLocaleString();
+  document.getElementById('kpi-revenue').textContent = '¥' + totalRev.toLocaleString();
+  document.getElementById('kpi-avg').textContent = totalCount ? '¥' + Math.round(totalRev/totalCount).toLocaleString() : '—';
+  document.getElementById('kpi-members').textContent = memberSet.size.toLocaleString();
+
+  chartData = {
+    cat: { count: catCount, revenue: catRev },
+    brand: { count: brandCount, revenue: brandRev },
+    market: { count: marketCount, revenue: marketRev }
+  };
+
+  renderBars('chart-category', catCount);
+  renderBars('chart-brand', brandCount);
+  renderBars('chart-market', marketCount);
+  renderTrend('chart-trend', weekMap);
+  log('グラフ描画完了', 'ok');
+}
+
+function getWeekKey(d) {
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day===0 ? -6 : 1);
+  const mon = new Date(d);
+  mon.setDate(diff);
+  return mon.toISOString().split('T')[0];
+}
+
+function renderBars(elId, data) {
+  const el = document.getElementById(elId);
+  const sorted = Object.entries(data).sort((a,b) => b[1]-a[1]).slice(0,8);
+  if (!sorted.length) { el.innerHTML = '<div class="empty">データなし</div>'; return; }
+  const max = sorted[0][1];
+  el.innerHTML = sorted.map(([name, val]) => `
+    <div class="bar-row">
+      <span class="name" title="${name}">${name}</span>
+      <div class="bar-wrap"><div class="bar" style="width:${Math.round(val/max*100)}%"></div></div>
+      <span class="count">${typeof val === 'number' && val > 1000 ? '¥'+Math.round(val/1000)+'k' : val.toLocaleString()}</span>
+    </div>
+  `).join('');
+}
+
+function renderTrend(elId, weekMap) {
+  const el = document.getElementById(elId);
+  const sorted = Object.entries(weekMap).sort((a,b) => a[0].localeCompare(b[0]));
+  if (!sorted.length) { el.innerHTML = '<div class="empty">データなし</div>'; return; }
+  const max = Math.max(...sorted.map(v => v[1]));
+  const W = 400, H = 140, pad = 32;
+  const pts = sorted.map((v, i) => {
+    const x = pad + i * (W - pad*2) / Math.max(sorted.length-1, 1);
+    const y = H - pad - (v[1]/max) * (H - pad*2);
+    return [Math.round(x), Math.round(y), v[0], v[1]];
+  });
+  const path = pts.map((p,i) => (i===0?'M':'L') + p[0]+','+p[1]).join(' ');
+  const area = path + ' L'+pts[pts.length-1][0]+','+(H-pad)+' L'+pts[0][0]+','+(H-pad)+' Z';
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:140px;">
+    <path d="${area}" fill="#1a1a1a" fill-opacity="0.08"/>
+    <path d="${path}" fill="none" stroke="#1a1a1a" stroke-width="1.5"/>
+    ${pts.map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="#1a1a1a"/><title>${p[2]}: ${p[3]}件</title>`).join('')}
+    ${pts.filter((_,i)=>i%Math.ceil(sorted.length/6)===0).map(p => `<text x="${p[0]}" y="${H-8}" text-anchor="middle" font-size="9" fill="#aaa">${p[2].slice(5)}</text>`).join('')}
+  </svg>`;
+}
+
+function switchTab(group, type, btn) {
+  tabState[group] = type;
+  btn.closest('.tab-row').querySelectorAll('button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const idMap = { cat: 'chart-category', brand: 'chart-brand', market: 'chart-market' };
+  if (chartData[group] && chartData[group][type]) {
+    renderBars(idMap[group], chartData[group][type]);
+  }
+}
+
+initDates();
+</script>
+</body>
+</html>
