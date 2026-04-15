@@ -12,27 +12,42 @@ header h1 { font-size: 16px; font-weight: 500; letter-spacing: 0.08em; }
 #status { font-size: 12px; color: #666; }
 #status.ok { color: #4caf50; }
 #status.err { color: #f44336; }
+
+/* タブ */
+.tabs-main { background: #fff; border-bottom: 1px solid #e8e8e4; padding: 0 24px; display: flex; gap: 0; }
+.tabs-main button { padding: 12px 20px; border: none; background: none; font-size: 13px; color: #888; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tabs-main button.active { color: #111; border-bottom-color: #111; font-weight: 500; }
+.tabs-main button:hover:not(.active) { color: #555; }
+
 .bar { background: #fff; border-bottom: 1px solid #e8e8e4; padding: 12px 24px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .bar label { font-size: 12px; color: #666; }
-.bar input[type=password], .bar input[type=date] { padding: 7px 11px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; }
-.bar input[type=password] { width: 320px; font-family: monospace; }
+.bar input[type=date] { padding: 7px 11px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; }
 .bar button { padding: 7px 14px; border: 1px solid #ddd; border-radius: 6px; font-size: 12px; cursor: pointer; background: #f4f4f0; }
 .bar button:hover { background: #e8e8e4; }
 .bar button.primary { background: #111; color: #fff; border-color: #111; }
-.bar button.active { background: #111; color: #fff; border-color: #111; }
+.bar button.active-period { background: #111; color: #fff; border-color: #111; }
 .bar button.export { background: #1976d2; color: #fff; border-color: #1976d2; }
 .bar button.export:hover { background: #1565c0; }
 .bar button.export:disabled { background: #aaa; border-color: #aaa; cursor: not-allowed; }
+.bar a.logout { font-size: 12px; color: #aaa; text-decoration: none; margin-left: auto; }
+.bar a.logout:hover { color: #f44336; }
+
 main { max-width: 1400px; margin: 0 auto; padding: 20px 24px; }
 #log { font-family: monospace; font-size: 12px; background: #fff; border: 1px solid #e8e8e4; border-radius: 8px; padding: 12px; max-height: 100px; overflow-y: auto; margin-bottom: 20px; line-height: 1.9; color: #666; }
 #log .ok { color: #4caf50; }
 #log .err { color: #f44336; }
 #log .info { color: #1976d2; }
+
+/* ページ切り替え */
+.page { display: none; }
+.page.active { display: block; }
+
 .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
 @media(max-width:700px){ .kpis { grid-template-columns: repeat(2,1fr); } }
 .kpi { background: #fff; border: 1px solid #e8e8e4; border-radius: 8px; padding: 16px; }
 .kpi .lbl { font-size: 11px; color: #999; margin-bottom: 6px; }
 .kpi .val { font-size: 22px; font-weight: 500; }
+
 .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 @media(max-width:900px){ .charts { grid-template-columns: 1fr; } }
 .card { background: #fff; border: 1px solid #e8e8e4; border-radius: 8px; padding: 18px; }
@@ -44,81 +59,136 @@ main { max-width: 1400px; margin: 0 auto; padding: 20px 24px; }
 .brow .nm { font-size: 12px; color: #444; width: 110px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .brow .track { flex: 1; background: #f0f0ec; border-radius: 3px; height: 7px; }
 .brow .fill { height: 7px; border-radius: 3px; background: #111; }
+.brow .fill.buy { background: #1976d2; }
 .brow .cnt { font-size: 12px; color: #888; width: 70px; text-align: right; flex-shrink: 0; }
 .empty { text-align: center; padding: 32px; color: #ccc; font-size: 12px; }
+
+/* 買取: チャネルバッジ */
+.channel-badge { display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: 10px; margin-right: 4px; }
+.channel-badge.shop { background: #e3f2fd; color: #1565c0; }
+.channel-badge.delivery { background: #e8f5e9; color: #2e7d32; }
+.channel-badge.general { background: #fff3e0; color: #e65100; }
 </style>
 </head>
 <body>
 
 <header>
   <h1>RECORE DASHBOARD</h1>
-  <span id="status">未接続</span>
+  <span id="status">読み込み中...</span>
 </header>
 
+<div class="tabs-main">
+  <button class="active" onclick="switchTab('sales', this)">販売</button>
+  <button onclick="switchTab('buy', this)">買取</button>
+</div>
+
 <div class="bar">
-  <label>API KEY</label>
-  <input type="password" id="apikey" placeholder="APIキーを入力" />
-  <button class="primary" onclick="connect()">接続</button>
-  <span style="color:#ddd">|</span>
   <label>期間</label>
   <input type="date" id="from" />
   <span style="color:#999">〜</span>
   <input type="date" id="to" />
   <button onclick="setDays(7,this)">7日</button>
-  <button class="active" id="d30" onclick="setDays(30,this)">30日</button>
+  <button class="active-period" id="d30" onclick="setDays(30,this)">30日</button>
   <button onclick="setDays(90,this)">90日</button>
-  <button class="primary" onclick="load()">取得</button>
+  <button class="primary" onclick="loadAll()">取得</button>
   <span style="color:#ddd">|</span>
-  <button class="export" id="btn-export" onclick="exportCSV()" disabled>CSVエクスポート</button>
+  <button class="export" id="btn-export-sales" onclick="exportCSV('sales')" disabled>CSV</button>
+  <a class="logout" href="login.html" onclick="sessionStorage.removeItem('recore_key')">ログアウト</a>
 </div>
 
 <main>
-  <div id="log">APIキーを入力して接続してください。</div>
+  <div id="log">データを取得します...</div>
 
-  <div class="kpis">
-    <div class="kpi"><div class="lbl">売上件数</div><div class="val" id="v-count">—</div></div>
-    <div class="kpi"><div class="lbl">売上金額（税込）</div><div class="val" id="v-rev">—</div></div>
-    <div class="kpi"><div class="lbl">平均単価</div><div class="val" id="v-avg">—</div></div>
-    <div class="kpi"><div class="lbl">ユニーク会員</div><div class="val" id="v-mem">—</div></div>
+  <!-- 販売タブ -->
+  <div id="page-sales" class="page active">
+    <div class="kpis">
+      <div class="kpi"><div class="lbl">売上件数</div><div class="val" id="s-count">—</div></div>
+      <div class="kpi"><div class="lbl">売上金額（税込）</div><div class="val" id="s-rev">—</div></div>
+      <div class="kpi"><div class="lbl">平均単価</div><div class="val" id="s-avg">—</div></div>
+      <div class="kpi"><div class="lbl">ユニーク会員</div><div class="val" id="s-mem">—</div></div>
+    </div>
+    <div class="charts">
+      <div class="card">
+        <h3>カテゴリ別</h3>
+        <div class="tabs">
+          <button class="active" onclick="sw('scat','count',this)">件数</button>
+          <button onclick="sw('scat','rev',this)">金額</button>
+        </div>
+        <div id="c-scat"><div class="empty">データなし</div></div>
+      </div>
+      <div class="card">
+        <h3>ブランド別</h3>
+        <div class="tabs">
+          <button class="active" onclick="sw('sbrand','count',this)">件数</button>
+          <button onclick="sw('sbrand','rev',this)">金額</button>
+        </div>
+        <div id="c-sbrand"><div class="empty">データなし</div></div>
+      </div>
+      <div class="card">
+        <h3>マケプレ別</h3>
+        <div class="tabs">
+          <button class="active" onclick="sw('smkt','count',this)">件数</button>
+          <button onclick="sw('smkt','rev',this)">金額</button>
+        </div>
+        <div id="c-smkt"><div class="empty">データなし</div></div>
+      </div>
+      <div class="card">
+        <h3>週次トレンド</h3>
+        <div id="c-strend"><div class="empty">データなし</div></div>
+      </div>
+    </div>
   </div>
 
-  <div class="charts">
-    <div class="card">
-      <h3>カテゴリ別</h3>
-      <div class="tabs">
-        <button class="active" onclick="sw('cat','count',this)">件数</button>
-        <button onclick="sw('cat','rev',this)">金額</button>
-      </div>
-      <div id="c-cat"><div class="empty">データなし</div></div>
+  <!-- 買取タブ -->
+  <div id="page-buy" class="page">
+    <div class="kpis">
+      <div class="kpi"><div class="lbl">買取件数</div><div class="val" id="b-count">—</div></div>
+      <div class="kpi"><div class="lbl">買取金額合計（税込）</div><div class="val" id="b-rev">—</div></div>
+      <div class="kpi"><div class="lbl">平均単価</div><div class="val" id="b-avg">—</div></div>
+      <div class="kpi"><div class="lbl">ユニーク会員</div><div class="val" id="b-mem">—</div></div>
     </div>
-    <div class="card">
-      <h3>ブランド別</h3>
-      <div class="tabs">
-        <button class="active" onclick="sw('brand','count',this)">件数</button>
-        <button onclick="sw('brand','rev',this)">金額</button>
+    <div class="charts">
+      <div class="card">
+        <h3>カテゴリ別買取</h3>
+        <div class="tabs">
+          <button class="active" onclick="sw('bcat','count',this)">件数</button>
+          <button onclick="sw('bcat','rev',this)">金額</button>
+        </div>
+        <div id="c-bcat"><div class="empty">データなし</div></div>
       </div>
-      <div id="c-brand"><div class="empty">データなし</div></div>
-    </div>
-    <div class="card">
-      <h3>マケプレ別</h3>
-      <div class="tabs">
-        <button class="active" onclick="sw('mkt','count',this)">件数</button>
-        <button onclick="sw('mkt','rev',this)">金額</button>
+      <div class="card">
+        <h3>仕入れチャネル別</h3>
+        <div class="tabs">
+          <button class="active" onclick="sw('bch','count',this)">件数</button>
+          <button onclick="sw('bch','rev',this)">金額</button>
+        </div>
+        <div id="c-bch"><div class="empty">データなし</div></div>
       </div>
-      <div id="c-mkt"><div class="empty">データなし</div></div>
-    </div>
-    <div class="card">
-      <h3>週次トレンド</h3>
-      <div id="c-trend"><div class="empty">データなし</div></div>
+      <div class="card">
+        <h3>ブランド別買取</h3>
+        <div class="tabs">
+          <button class="active" onclick="sw('bbrand','count',this)">件数</button>
+          <button onclick="sw('bbrand','rev',this)">金額</button>
+        </div>
+        <div id="c-bbrand"><div class="empty">データなし</div></div>
+      </div>
+      <div class="card">
+        <h3>週次トレンド（買取）</h3>
+        <div id="c-btrend"><div class="empty">データなし</div></div>
+      </div>
     </div>
   </div>
+
 </main>
 
 <script>
 const API = 'https://co-api.recore-pos.com';
 let KEY = '';
-let data = { cat:{count:{},rev:{}}, brand:{count:{},rev:{}}, mkt:{count:{},rev:{}} };
-let exportRows = []; // CSVエクスポート用の生データ
+
+// データストア
+let sData = { scat:{count:{},rev:{}}, sbrand:{count:{},rev:{}}, smkt:{count:{},rev:{}} };
+let bData = { bcat:{count:{},rev:{}}, bbrand:{count:{},rev:{}}, bch:{count:{},rev:{}} };
+let sExportRows = [];
 
 function addLog(msg, type) {
   const el = document.getElementById('log');
@@ -137,224 +207,208 @@ function setDays(n, btn) {
   from.setDate(from.getDate() - n);
   document.getElementById('to').value = to.toISOString().slice(0,10);
   document.getElementById('from').value = from.toISOString().slice(0,10);
-  document.querySelectorAll('.bar button:not(.primary):not(.export)').forEach(function(b){ b.classList.remove('active'); });
+  document.querySelectorAll('.bar button:not(.primary):not(.export)').forEach(function(b){ b.classList.remove('active-period'); });
+  btn.classList.add('active-period');
+}
+
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tabs-main button').forEach(function(b){ b.classList.remove('active'); });
   btn.classList.add('active');
+  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+  document.getElementById('page-' + tab).classList.add('active');
 }
 
 async function req(path, params) {
   const url = new URL(API + path);
-  if (params) {
-    Object.keys(params).forEach(function(k){ url.searchParams.set(k, params[k]); });
-  }
-  const r = await fetch(url.toString(), {
-    method: 'GET',
-    headers: { 'Authorization': KEY }
-  });
+  if (params) Object.keys(params).forEach(function(k){ url.searchParams.set(k, params[k]); });
+  const r = await fetch(url.toString(), { headers: { 'Authorization': KEY } });
   if (!r.ok) throw new Error(r.status + ' ' + r.statusText);
   return r.json();
 }
 
-async function connect() {
-  KEY = document.getElementById('apikey').value.trim();
-  if (!KEY) { addLog('APIキーを入力してください', 'err'); return; }
-  addLog('接続テスト中...', 'info');
-  try {
-    await req('/me');
-    document.getElementById('status').textContent = '接続済み';
-    document.getElementById('status').className = 'ok';
-    addLog('接続成功！', 'ok');
-    load();
-  } catch(e) {
-    addLog('接続失敗: ' + e.message, 'err');
-    document.getElementById('status').textContent = 'エラー';
-    document.getElementById('status').className = 'err';
-  }
-}
-
-async function load() {
-  if (!KEY) { addLog('先に接続してください', 'err'); return; }
+async function fetchAll(path, dateFromKey, dateToKey) {
   const from = document.getElementById('from').value;
   const to = document.getElementById('to').value;
-  addLog('データ取得開始... (' + from + ' 〜 ' + to + ')', 'info');
-  document.getElementById('btn-export').disabled = true;
+  let cases = [], cursor = '';
+  while (true) {
+    const params = { limit: 100, cursor: cursor };
+    if (from) params[dateFromKey] = toDateTimeStr(from, false);
+    if (to) params[dateToKey] = toDateTimeStr(to, true);
+    const res = await req(path, params);
+    const rows = Array.isArray(res) ? res : (res.data || []);
+    cases = cases.concat(rows);
+    addLog(path + ': ' + cases.length + '件取得中...', 'info');
+    if (rows.length < 100) break;
+    cursor = rows[rows.length - 1].id || '';
+    if (!cursor) break;
+  }
+  return cases;
+}
+
+async function loadAll() {
+  if (!KEY) return;
+  const from = document.getElementById('from').value;
+  const to = document.getElementById('to').value;
+  addLog('全データ取得開始... (' + from + ' 〜 ' + to + ')', 'info');
+  document.getElementById('btn-export-sales').disabled = true;
 
   try {
-    let cases = [];
-    let cursor = '';
-    while (true) {
-      const params = { limit: 100, cursor: cursor };
-      if (from) params.done_at_from = toDateTimeStr(from, false);
-      if (to) params.done_at_to = toDateTimeStr(to, true);
-      const res = await req('/v2/sas_cases', params);
-      const rows = Array.isArray(res) ? res : (res.data || []);
-      cases = cases.concat(rows);
-      addLog(cases.length + '件取得中...', 'info');
-      if (rows.length < 100) break;
-      cursor = rows[rows.length - 1].id || '';
-      if (!cursor) break;
-    }
-    addLog('合計 ' + cases.length + '件取得完了', 'ok');
-    await buildData(cases);
+    // 販売データ
+    const sasCases = await fetchAll('/v2/sas_cases', 'done_at_from', 'done_at_to');
+    addLog('販売: ' + sasCases.length + '件取得完了', 'ok');
+    await buildSalesData(sasCases);
+
+    // 買取データ（3エンドポイント並列）
+    addLog('買取データ取得中...', 'info');
+    const [basCases, badCases, bigCases] = await Promise.all([
+      fetchAll('/v2/bas_cases', 'done_at_from', 'done_at_to'),
+      fetchAll('/bad_cases', 'stocked_at_from', 'stocked_at_to'),
+      fetchAll('/big_cases', 'done_at_from', 'done_at_to'),
+    ]);
+    addLog('店頭買取: ' + basCases.length + '件 / 宅配買取: ' + badCases.length + '件 / 一般仕入: ' + bigCases.length + '件', 'ok');
+    await buildBuyData(basCases, badCases, bigCases);
+
+    document.getElementById('btn-export-sales').disabled = false;
+    addLog('全データ取得・集計完了！', 'ok');
   } catch(e) {
     addLog('取得エラー: ' + e.message, 'err');
   }
 }
 
-async function buildData(cases) {
-  addLog('商品・会員情報を取得中...', 'info');
+// 商品情報キャッシュ
+const itemCache = {}, productCache = {}, memberCache = {};
 
-  const itemIdSet = {};
-  const itemIds = [];
+async function enrichItems(cases) {
+  const itemIds = [], memberIds = [];
+  const iSeen = {}, mSeen = {};
   cases.forEach(function(c) {
-    if (c.goods) {
-      c.goods.forEach(function(g) {
-        if (g.item_id && !itemIdSet[g.item_id]) {
-          itemIdSet[g.item_id] = true;
-          itemIds.push(g.item_id);
-        }
-      });
-    }
+    if (c.goods) c.goods.forEach(function(g) {
+      if (g.item_id && !iSeen[g.item_id]) { iSeen[g.item_id]=true; itemIds.push(g.item_id); }
+    });
+    if (c.member_id && !mSeen[c.member_id]) { mSeen[c.member_id]=true; memberIds.push(c.member_id); }
   });
-
-  const memberIdSet = {};
-  const memberIds = [];
-  cases.forEach(function(c) {
-    if (c.member_id && !memberIdSet[c.member_id]) {
-      memberIdSet[c.member_id] = true;
-      memberIds.push(c.member_id);
-    }
-  });
-
-  const items = {}, products = {}, members = {};
 
   for (var i = 0; i < itemIds.length; i += 5) {
     await Promise.all(itemIds.slice(i, i+5).map(async function(id) {
+      if (itemCache[id]) return;
       try {
         const item = await req('/items/' + id);
-        items[id] = item;
-        if (item.product_id && !products[item.product_id]) {
+        itemCache[id] = item;
+        if (item.product_id && !productCache[item.product_id]) {
           const p = await req('/products/' + item.product_id);
-          products[item.product_id] = p;
+          productCache[item.product_id] = p;
         }
       } catch(e) {}
     }));
   }
-
   for (var j = 0; j < memberIds.length; j += 5) {
     await Promise.all(memberIds.slice(j, j+5).map(async function(id) {
-      try { members[id] = await req('/members/' + id); } catch(e) {}
+      if (memberCache[id]) return;
+      try { memberCache[id] = await req('/members/' + id); } catch(e) {}
     }));
   }
+}
 
-  addLog('エンリッチ完了、集計中...', 'info');
+async function buildSalesData(cases) {
+  addLog('販売: 商品・会員情報取得中...', 'info');
+  await enrichItems(cases);
+  addLog('販売: 集計中...', 'info');
 
   let totalRev = 0;
   const memSet = new Set();
   const catC={}, catR={}, brandC={}, brandR={}, mktC={}, mktR={}, weekC={};
-  data = { cat:{count:catC,rev:catR}, brand:{count:brandC,rev:brandR}, mkt:{count:mktC,rev:mktR} };
-  exportRows = [];
+  sData = { scat:{count:catC,rev:catR}, sbrand:{count:brandC,rev:brandR}, smkt:{count:mktC,rev:mktR} };
+  sExportRows = [];
 
   cases.forEach(function(c) {
     const price = Number((c.summary && c.summary.total) || 0);
     const subtotal = Number((c.summary && c.summary.sub_total) || 0);
-    const tax = Number((c.summary && c.summary.total) || 0) - subtotal;
+    const tax = price - subtotal;
     totalRev += price;
     if (c.member_id) memSet.add(c.member_id);
 
-    const mkt = normMkt(members[c.member_id]);
+    const mkt = normMkt(memberCache[c.member_id]);
     mktC[mkt] = (mktC[mkt]||0) + 1;
     mktR[mkt] = (mktR[mkt]||0) + price;
 
     const doneAt = c.done_at ? fmtDate(new Date(c.done_at * 1000)) : '';
 
-    if (c.goods) {
-      c.goods.forEach(function(g) {
-        const item = items[g.item_id] || {};
-        const prod = products[item.product_id] || {};
-        const cat = (prod.category && prod.category.name) || item.category_name || '未分類';
-        const brand = (prod.attribute && prod.attribute.brand) || item.brand_name || '不明';
+    if (c.goods) c.goods.forEach(function(g) {
+      const item = itemCache[g.item_id] || {};
+      const prod = productCache[item.product_id] || {};
+      const cat = (prod.category && prod.category.name) || '未分類';
+      const brand = (prod.attribute && prod.attribute.brand) || '不明';
+      const gPrice = Number(g.unit_price || 0) * Number(g.quantity || 1);
+      catC[cat] = (catC[cat]||0) + 1; catR[cat] = (catR[cat]||0) + gPrice;
+      brandC[brand] = (brandC[brand]||0) + 1; brandR[brand] = (brandR[brand]||0) + gPrice;
+      sExportRows.push({ date:doneAt, code:c.code||'', category:cat, brand:brand, marketplace:mkt,
+        item_id:g.item_id||'', quantity:g.quantity||1, unit_price:g.unit_price||0,
+        subtotal:subtotal, tax:tax, total:price });
+    });
+
+    if (c.done_at) { const wk = weekKey(new Date(c.done_at*1000)); weekC[wk]=(weekC[wk]||0)+1; }
+  });
+
+  document.getElementById('s-count').textContent = cases.length.toLocaleString();
+  document.getElementById('s-rev').textContent = '¥' + totalRev.toLocaleString();
+  document.getElementById('s-avg').textContent = cases.length ? '¥' + Math.round(totalRev/cases.length).toLocaleString() : '—';
+  document.getElementById('s-mem').textContent = memSet.size.toLocaleString();
+
+  bars('c-scat', catC, false);
+  bars('c-sbrand', brandC, false);
+  bars('c-smkt', mktC, false);
+  trend('c-strend', weekC);
+}
+
+async function buildBuyData(basCases, badCases, bigCases) {
+  addLog('買取: 商品情報取得中...', 'info');
+  await enrichItems([...basCases, ...badCases, ...bigCases]);
+  addLog('買取: 集計中...', 'info');
+
+  const catC={}, catR={}, brandC={}, brandR={}, chC={}, chR={}, weekC={};
+  bData = { bcat:{count:catC,rev:catR}, bbrand:{count:brandC,rev:brandR}, bch:{count:chC,rev:chR} };
+
+  let totalRev = 0, totalCount = 0;
+  const memSet = new Set();
+
+  function processCases(cases, channel) {
+    cases.forEach(function(c) {
+      const price = Number((c.summary && c.summary.total) || 0);
+      totalRev += price;
+      totalCount++;
+      if (c.member_id) memSet.add(c.member_id);
+
+      chC[channel] = (chC[channel]||0) + 1;
+      chR[channel] = (chR[channel]||0) + price;
+
+      if (c.goods) c.goods.forEach(function(g) {
+        const item = itemCache[g.item_id] || {};
+        const prod = productCache[item.product_id || (item.product && item.product.id)] || {};
+        const cat = (prod.category && prod.category.name) || '未分類';
+        const brand = (prod.attribute && prod.attribute.brand) || '不明';
         const gPrice = Number(g.unit_price || 0) * Number(g.quantity || 1);
-        catC[cat] = (catC[cat]||0) + 1;
-        catR[cat] = (catR[cat]||0) + gPrice;
-        brandC[brand] = (brandC[brand]||0) + 1;
-        brandR[brand] = (brandR[brand]||0) + gPrice;
-
-        // エクスポート用行データ（1商品1行）
-        exportRows.push({
-          date: doneAt,
-          code: c.code || '',
-          category: cat,
-          brand: brand,
-          marketplace: mkt,
-          item_id: g.item_id || '',
-          quantity: g.quantity || 1,
-          unit_price: g.unit_price || 0,
-          subtotal: subtotal,
-          tax: tax,
-          total: price
-        });
+        catC[cat] = (catC[cat]||0) + 1; catR[cat] = (catR[cat]||0) + gPrice;
+        brandC[brand] = (brandC[brand]||0) + 1; brandR[brand] = (brandR[brand]||0) + gPrice;
       });
-    }
 
-    if (c.done_at) {
-      const wk = weekKey(new Date(c.done_at * 1000));
-      weekC[wk] = (weekC[wk]||0) + 1;
-    }
-  });
+      const ts = c.done_at || c.stocked_at || c.created_at;
+      if (ts) { const wk = weekKey(new Date(ts*1000)); weekC[wk]=(weekC[wk]||0)+1; }
+    });
+  }
 
-  document.getElementById('v-count').textContent = cases.length.toLocaleString();
-  document.getElementById('v-rev').textContent = '¥' + totalRev.toLocaleString();
-  document.getElementById('v-avg').textContent = cases.length ? '¥' + Math.round(totalRev/cases.length).toLocaleString() : '—';
-  document.getElementById('v-mem').textContent = memSet.size.toLocaleString();
+  processCases(basCases, '店頭買取');
+  processCases(badCases, '宅配買取');
+  processCases(bigCases, '一般仕入');
 
-  bars('c-cat', catC);
-  bars('c-brand', brandC);
-  bars('c-mkt', mktC);
-  trend('c-trend', weekC);
+  document.getElementById('b-count').textContent = totalCount.toLocaleString();
+  document.getElementById('b-rev').textContent = '¥' + totalRev.toLocaleString();
+  document.getElementById('b-avg').textContent = totalCount ? '¥' + Math.round(totalRev/totalCount).toLocaleString() : '—';
+  document.getElementById('b-mem').textContent = memSet.size.toLocaleString();
 
-  document.getElementById('btn-export').disabled = false;
-  addLog('完了！CSVエクスポートが可能になりました', 'ok');
-}
-
-function fmtDate(d) {
-  return d.getFullYear() + '/' + pad(d.getMonth()+1) + '/' + pad(d.getDate());
-}
-
-function pad(n) {
-  return n < 10 ? '0' + n : '' + n;
-}
-
-function exportCSV() {
-  if (!exportRows.length) { addLog('データがありません', 'err'); return; }
-
-  const headers = ['日付', 'ケースコード', 'カテゴリ', 'ブランド', 'マケプレ', '在庫ID', '数量', '販売単価', '小計（税抜）', '消費税', '合計（税込）'];
-  const rows = exportRows.map(function(r) {
-    return [r.date, r.code, r.category, r.brand, r.marketplace, r.item_id, r.quantity, r.unit_price, r.subtotal, r.tax, r.total];
-  });
-
-  const csv = [headers].concat(rows).map(function(row) {
-    return row.map(function(cell) {
-      const s = String(cell);
-      // カンマ・改行・ダブルクォートを含む場合はダブルクォートで囲む
-      if (s.indexOf(',') >= 0 || s.indexOf('\n') >= 0 || s.indexOf('"') >= 0) {
-        return '"' + s.replace(/"/g, '""') + '"';
-      }
-      return s;
-    }).join(',');
-  }).join('\n');
-
-  // BOM付きUTF-8（Excelで文字化けしないように）
-  const bom = '\uFEFF';
-  const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  const from = document.getElementById('from').value.replace(/-/g, '');
-  const to = document.getElementById('to').value.replace(/-/g, '');
-  a.href = url;
-  a.download = 'recore_' + from + '_' + to + '.csv';
-  a.click();
-  URL.revokeObjectURL(url);
-  addLog('CSVをダウンロードしました', 'ok');
+  bars('c-bcat', catC, true);
+  bars('c-bbrand', brandC, true);
+  bars('c-bch', chC, true);
+  trend('c-btrend', weekC);
 }
 
 function normMkt(member) {
@@ -372,12 +426,16 @@ function normMkt(member) {
 
 function weekKey(d) {
   const diff = d.getDate() - d.getDay() + (d.getDay()===0 ? -6 : 1);
-  const m = new Date(d);
-  m.setDate(diff);
+  const m = new Date(d); m.setDate(diff);
   return m.toISOString().slice(0,10);
 }
 
-function bars(id, obj) {
+function fmtDate(d) {
+  return d.getFullYear() + '/' + pad(d.getMonth()+1) + '/' + pad(d.getDate());
+}
+function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+function bars(id, obj, isBuy) {
   const el = document.getElementById(id);
   const sorted = Object.entries(obj).sort(function(a,b){ return b[1]-a[1]; }).slice(0,8);
   if (!sorted.length) { el.innerHTML = '<div class="empty">データなし</div>'; return; }
@@ -385,7 +443,8 @@ function bars(id, obj) {
   el.innerHTML = sorted.map(function(item) {
     const nm = item[0], v = item[1];
     const disp = v > 10000 ? '¥' + Math.round(v/1000) + 'k' : v.toLocaleString();
-    return '<div class="brow"><span class="nm" title="' + nm + '">' + nm + '</span><div class="track"><div class="fill" style="width:' + Math.round(v/max*100) + '%"></div></div><span class="cnt">' + disp + '</span></div>';
+    const fillClass = isBuy ? 'fill buy' : 'fill';
+    return '<div class="brow"><span class="nm" title="' + nm + '">' + nm + '</span><div class="track"><div class="' + fillClass + '" style="width:' + Math.round(v/max*100) + '%"></div></div><span class="cnt">' + disp + '</span></div>';
   }).join('');
 }
 
@@ -396,28 +455,57 @@ function trend(id, obj) {
   const W=400, H=130, px=30, py=20;
   const max = Math.max.apply(null, pts.map(function(p){ return p[1]; }));
   const coords = pts.map(function(p, i) {
-    return {
-      x: Math.round(px + i*(W-px*2)/Math.max(pts.length-1,1)),
-      y: Math.round(py + (1 - p[1]/max)*(H-py*2)),
-      wk: p[0], v: p[1]
-    };
+    return { x: Math.round(px + i*(W-px*2)/Math.max(pts.length-1,1)), y: Math.round(py + (1-p[1]/max)*(H-py*2)), wk:p[0], v:p[1] };
   });
-  const line = coords.map(function(p,i){ return (i?'L':'M') + p.x + ',' + p.y; }).join(' ');
-  const area = line + ' L' + coords[coords.length-1].x + ',' + (H-py) + ' L' + coords[0].x + ',' + (H-py) + ' Z';
-  const dots = coords.map(function(p){ return '<circle cx="' + p.x + '" cy="' + p.y + '" r="3" fill="#111"><title>' + p.wk + ': ' + p.v + '件</title></circle>'; }).join('');
+  const line = coords.map(function(p,i){ return (i?'L':'M')+p.x+','+p.y; }).join(' ');
+  const area = line+' L'+coords[coords.length-1].x+','+(H-py)+' L'+coords[0].x+','+(H-py)+' Z';
+  const dots = coords.map(function(p){ return '<circle cx="'+p.x+'" cy="'+p.y+'" r="3" fill="#111"><title>'+p.wk+': '+p.v+'件</title></circle>'; }).join('');
   const step = Math.ceil(pts.length/5);
-  const lbls = coords.filter(function(_,i){ return i % step === 0; }).map(function(p){ return '<text x="' + p.x + '" y="' + (H-4) + '" text-anchor="middle" font-size="9" fill="#bbb">' + p.wk.slice(5) + '</text>'; }).join('');
-  el.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:130px;"><path d="' + area + '" fill="#111" fill-opacity="0.07"/><path d="' + line + '" fill="none" stroke="#111" stroke-width="1.5"/>' + dots + lbls + '</svg>';
+  const lbls = coords.filter(function(_,i){ return i%step===0; }).map(function(p){ return '<text x="'+p.x+'" y="'+(H-4)+'" text-anchor="middle" font-size="9" fill="#bbb">'+p.wk.slice(5)+'</text>'; }).join('');
+  el.innerHTML = '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:130px;"><path d="'+area+'" fill="#111" fill-opacity="0.07"/><path d="'+line+'" fill="none" stroke="#111" stroke-width="1.5"/>'+dots+lbls+'</svg>';
 }
 
 function sw(group, type, btn) {
   btn.closest('.tabs').querySelectorAll('button').forEach(function(b){ b.classList.remove('active'); });
   btn.classList.add('active');
-  const idMap = {cat:'c-cat', brand:'c-brand', mkt:'c-mkt'};
-  bars(idMap[group], data[group][type]);
+  const idMap = { scat:'c-scat', sbrand:'c-sbrand', smkt:'c-smkt', bcat:'c-bcat', bbrand:'c-bbrand', bch:'c-bch' };
+  const isBuy = group.startsWith('b');
+  const dataMap = { scat:sData.scat, sbrand:sData.sbrand, smkt:sData.smkt,
+                    bcat:bData.bcat, bbrand:bData.bbrand, bch:bData.bch };
+  bars(idMap[group], dataMap[group][type], isBuy);
 }
 
-setDays(30, document.getElementById('d30'));
+function exportCSV(tab) {
+  if (!sExportRows.length) { addLog('データがありません', 'err'); return; }
+  const headers = ['日付','ケースコード','カテゴリ','ブランド','マケプレ','在庫ID','数量','販売単価','小計（税抜）','消費税','合計（税込）'];
+  const rows = sExportRows.map(function(r){ return [r.date,r.code,r.category,r.brand,r.marketplace,r.item_id,r.quantity,r.unit_price,r.subtotal,r.tax,r.total]; });
+  const csv = [headers].concat(rows).map(function(row){
+    return row.map(function(cell){
+      const s=String(cell);
+      return (s.indexOf(',')>=0||s.indexOf('\n')>=0||s.indexOf('"')>=0) ? '"'+s.replace(/"/g,'""')+'"' : s;
+    }).join(',');
+  }).join('\n');
+  const bom='\uFEFF';
+  const blob=new Blob([bom+csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const from=document.getElementById('from').value.replace(/-/g,'');
+  const to=document.getElementById('to').value.replace(/-/g,'');
+  a.href=url; a.download='recore_sales_'+from+'_'+to+'.csv'; a.click();
+  URL.revokeObjectURL(url);
+  addLog('CSVをダウンロードしました', 'ok');
+}
+
+// 初期化
+KEY = sessionStorage.getItem('recore_key');
+if (!KEY) {
+  location.href = 'login.html';
+} else {
+  document.getElementById('status').textContent = '接続済み';
+  document.getElementById('status').className = 'ok';
+  setDays(30, document.getElementById('d30'));
+  loadAll();
+}
 </script>
 </body>
 </html>
